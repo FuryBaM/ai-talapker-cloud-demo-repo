@@ -120,6 +120,31 @@ app.add_middleware(
 )
 
 
+def _direct_chat_answer(message: str, lang: str = "ru") -> str | None:
+    text = (message or "").strip().lower()
+    compact = " ".join(text.split())
+    greetings = {"привет", "здравствуйте", "салам", "сәлем", "hello", "hi"}
+    smalltalk = {"как дела", "как ты", "қалың қалай"}
+    if compact in greetings:
+        return (
+            "Здравствуйте. Я AI-Talapker, демонстрационный ассистент по поступлению. "
+            "Могу отвечать на вопросы по образовательным программам, документам, грантам, общежитию и срокам приёма."
+        )
+    if compact in smalltalk:
+        return (
+            "Работаю в демонстрационном режиме. Задайте вопрос по поступлению, программам, документам, грантам, "
+            "общежитию или срокам приёма."
+        )
+    return None
+
+
+def _blank_answer_fallback(lang: str = "ru") -> str:
+    return (
+        "Сервер получил запрос, но модель или база знаний вернула пустой ответ. "
+        "Проверьте OPENROUTER_CHAT_MODEL, QDRANT_COLLECTION и наличие загруженных chunks в Qdrant."
+    )
+
+
 _rate_windows: dict[str, deque[float]] = defaultdict(deque)
 
 
@@ -164,6 +189,15 @@ async def ask_question(req: Ask, _: None = Depends(rate_limit(30, 60, "ask"))):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, _: None = Depends(rate_limit(30, 60, "chat"))):
+    direct_answer = _direct_chat_answer(req.message, req.lang)
+    if direct_answer:
+        return ChatResponse(
+            session_id=req.session_id,
+            answer=direct_answer,
+            route="direct",
+            profile_complete=False,
+        )
+
     result = run_agent_turn(
         message=req.message,
         lang=req.lang,
@@ -173,9 +207,12 @@ async def chat(req: ChatRequest, _: None = Depends(rate_limit(30, 60, "chat"))):
         reply_to=req.reply_to.model_dump() if req.reply_to else None,
         message_id=req.message_id,
     )
+    answer = str(result.get("answer") or "").strip()
+    if not answer:
+        answer = _blank_answer_fallback(req.lang)
     return ChatResponse(
         session_id=result["session_id"],
-        answer=result["answer"],
+        answer=answer,
         route=result.get("route", "knowledge"),
         profile_complete=bool(result.get("profile_complete")),
     )

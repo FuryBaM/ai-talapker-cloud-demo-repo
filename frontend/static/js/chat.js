@@ -701,8 +701,14 @@
           reply_to: replyTo
         })
       });
-      const data = await res.json();
-      state.messages[responseIndex] = { id: aiMessageId, role: 'ai', content: data?.answer || 'Пустой ответ от сервера.', ts: Date.now() };
+      const data = await res.json().catch(() => ({}));
+      const answer = String(data?.answer || data?.detail || data?.error || '').trim();
+      state.messages[responseIndex] = {
+        id: aiMessageId,
+        role: 'ai',
+        content: answer || `Пустой ответ от сервера. HTTP ${res.status}`,
+        ts: Date.now()
+      };
       state.lastRoute = data?.route ? `${data.route}${data?.profile_complete ? ' · профиль собран' : ''}` : '';
     } catch (err) {
       state.messages[responseIndex] = { id: aiMessageId, role: 'ai', content: `Ошибка: ${err}`, ts: Date.now() };
