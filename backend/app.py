@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from collections import defaultdict, deque
 from pathlib import Path
@@ -172,6 +173,173 @@ def _blank_answer_fallback(lang: str = "ru") -> str:
     )
 
 
+_STOPWORDS = {
+    "какие", "какая", "какой", "есть", "доступны", "доступные", "для", "что", "это", "или", "при",
+    "меня", "мне", "можно", "нужно", "надо", "по", "в", "на", "и", "а", "the", "what", "which",
+}
+
+_PROGRAM_MARKERS = (
+    "образовательн", "программ", "специальност", "бакалавр", "магистр", "докторан",
+    "информат", "математ", "software", "computer", "data", "искусствен", "машин", "втпо",
+    "b0", "b057", "b058", "b059", "b063", "b064", "b065", "b066", "b067", "b068", "b071",
+)
+
+_NOISE_MARKERS_FOR_PROGRAM_QUERY = (
+    "общежит", "заселени", "серпін", "серпин", "сроки", "календар", "грант", "льгот", "военн",
+)
+
+
+def _clean_text(value: object) -> str:
+    return " ".join(str(value or "").replace("\x00", " ").split())
+
+
+def _tokenize(text: str) -> list[str]:
+    return [token for token in re.findall(r"[a-zа-яәғқңөұүһі0-9]+", (text or "").lower().replace("ё", "е")) if len(token) > 2 and token not in _STOPWORDS]
+
+
+def _query_intent(question: str) -> str:
+    text = (question or "").lower().replace("ё", "е")
+    if any(marker in text for marker in ("общежит", "заселен", "проживан")):
+        return "housing"
+    if any(marker in text for marker in ("документ", "заявлен", "удостовер", "аттестат")):
+        return "documents"
+    if any(marker in text for marker in ("срок", "календар", "дата", "когда")):
+        return "timeline"
+    if any(marker in text for marker in ("грант", "серпін", "серпин", "льгот")):
+        return "grants"
+    if any(marker in text for marker in ("образователь", "программ", "специальност", "математ", "информат", "ент", "профиль")):
+        return "programs"
+    return "general"
+
+
+def _hit_text_blob(hit: dict) -> str:
+    meta = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+    parts = [
+        hit.get("title"), hit.get("text"), hit.get("source_id"), hit.get("source_file"), hit.get("domain"),
+        hit.get("class_name"), hit.get("schema"), hit.get("entry_type"), meta.get("sheet_name"), meta.get("record_type"),
+        meta.get("class_name"), meta.get("domain"),
+    ]
+    return _clean_text(" ".join(str(part or "") for part in parts)).lower().replace("ё", "е")
+
+
+def _program_hit_allowed(hit: dict, question: str) -> bool:
+    blob = _hit_text_blob(hit)
+    q = (question or "").lower().replace("ё", "е")
+    has_program_signal = any(marker in blob for marker in _PROGRAM_MARKERS)
+    if not has_program_signal:
+        return False
+    # Do not let broad program queries fall into dormitory/Serpin/timeline chunks.
+    if not any(marker in q for marker in ("общежит", "серпін", "серпин", "срок", "календар", "грант", "льгот")):
+        noisy = sum(1 for marker in _NOISE_MARKERS_FOR_PROGRAM_QUERY if marker in blob)
+        if noisy and not any(marker in blob for marker in ("b0", "группа образователь", "образовательная программа", "наименование образователь")):
+            return False
+    return True
+
+
+def _rank_hit(hit: dict, question: str, semantic_rank: int = 0) -> float:
+    blob = _hit_text_blob(hit)
+    q_tokens = _tokenize(question)
+    score = float(hit.get("score") or 0.0) * 3.0
+    if semantic_rank:
+        score += max(0.0, 1.5 - semantic_rank * 0.05)
+    for token in q_tokens:
+        if token in blob:
+            score += 2.5
+        elif len(token) >= 5 and any(word.startswith(token[:5]) for word in _tokenize(blob[:3000])):
+            score += 1.2
+    intent = _query_intent(question)
+    if intent == "programs":
+        score += sum(1.8 for marker in _PROGRAM_MARKERS if marker in blob)
+        if _program_hit_allowed(hit, question):
+            score += 6.0
+        else:
+            score -= 10.0
+    elif intent == "housing" and "общежит" in blob:
+        score += 8.0
+    elif intent == "documents" and any(marker in blob for marker in ("документ", "удостовер", "аттестат", "заявлен")):
+        score += 8.0
+    elif intent == "timeline" and any(marker in blob for marker in ("срок", "календар", "дата", "хронолог")):
+        score += 8.0
+    elif intent == "grants" and any(marker in blob for marker in ("грант", "серпін", "серпин", "льгот")):
+        score += 8.0
+    return score
+
+
+def _scroll_payload_hits(question: str, *, limit: int = 1200) -> list[dict]:
+    index = _get_search_index()
+    collected: list[dict] = []
+    offset = None
+    remaining = max(1, int(limit))
+    while remaining > 0:
+        batch_size = min(256, remaining)
+        points, offset = index.client.scroll(
+            collection_name=index.collection_name,
+            limit=batch_size,
+            offset=offset,
+            with_payload=True,
+            with_vectors=False,
+        )
+        for point in points or []:
+            payload = dict(getattr(point, "payload", None) or {})
+            text = _clean_text(payload.get("text") or payload.get("embedding_text") or payload.get("raw_text"))
+            if not text:
+                continue
+            hit = {
+                "score": 0.0,
+                "source_id": str(payload.get("source_id", "")),
+                "class_name": str(payload.get("class_name", "")),
+                "domain": str(payload.get("domain") or payload.get("class_name", "")),
+                "schema": str(payload.get("schema", "")),
+                "title": str(payload.get("title", "")),
+                "text": text,
+                "chunk_id": str(payload.get("chunk_id", "")),
+                "logical_group_id": str(payload.get("logical_group_id") or ""),
+                "entry_type": str(payload.get("entry_type") or payload.get("schema") or ""),
+                "source_file": str(payload.get("source_file") or ""),
+                "metadata": dict(payload.get("metadata", {}) or {}),
+            }
+            collected.append(hit)
+        if offset is None:
+            break
+        remaining -= batch_size
+    return collected
+
+
+def _merge_and_rank_hits(question: str, semantic_hits: list[dict], lexical_hits: list[dict]) -> list[dict]:
+    merged: dict[str, dict] = {}
+    for semantic_rank, hit in enumerate(semantic_hits or [], start=1):
+        key = str(hit.get("chunk_id") or hit.get("logical_group_id") or (hit.get("title", "") + hit.get("text", "")[:120]))
+        item = dict(hit)
+        item["_semantic_rank"] = semantic_rank
+        merged[key] = item
+    for hit in lexical_hits or []:
+        key = str(hit.get("chunk_id") or hit.get("logical_group_id") or (hit.get("title", "") + hit.get("text", "")[:120]))
+        if key not in merged:
+            merged[key] = dict(hit)
+    intent = _query_intent(question)
+    ranked = []
+    for hit in merged.values():
+        if not _clean_text(hit.get("text")):
+            continue
+        if intent == "programs" and not _program_hit_allowed(hit, question):
+            continue
+        rank = _rank_hit(hit, question, int(hit.get("_semantic_rank") or 0))
+        hit["_demo_rank"] = round(rank, 4)
+        ranked.append(hit)
+    ranked.sort(key=lambda row: float(row.get("_demo_rank") or 0.0), reverse=True)
+    return ranked
+
+
+def _retrieve_demo_hits(question: str) -> list[dict]:
+    semantic_hits: list[dict] = []
+    try:
+        semantic_hits = search_debug(question, _get_search_index(), top_k=30)
+    except Exception:
+        semantic_hits = []
+    lexical_hits = _scroll_payload_hits(question, limit=int(os.getenv("APP_DEMO_SCROLL_LIMIT", "1500")))
+    return _merge_and_rank_hits(question, semantic_hits, lexical_hits)[:8]
+
+
 def _format_context_hit(hit: dict, index: int) -> str:
     title = str(hit.get("title") or hit.get("source_id") or hit.get("source_file") or f"Фрагмент {index}").strip()
     text = str(hit.get("text") or "").strip()
@@ -181,7 +349,12 @@ def _format_context_hit(hit: dict, index: int) -> str:
 
 
 def _deterministic_rag_answer(question: str, hits: list[dict]) -> str:
-    lines = ["Нашёл релевантные фрагменты в базе знаний. Кратко по найденным данным:"]
+    intent = _query_intent(question)
+    if intent == "programs":
+        header = "По базе знаний нашёл фрагменты, относящиеся к образовательным программам:"
+    else:
+        header = "По базе знаний нашёл релевантные фрагменты:"
+    lines = [header]
     for index, hit in enumerate(hits[:4], start=1):
         title = str(hit.get("title") or hit.get("source_file") or f"Источник {index}").strip()
         text = str(hit.get("text") or "").strip()
@@ -197,21 +370,24 @@ def _deterministic_rag_answer(question: str, hits: list[dict]) -> str:
 
 
 def _simple_cloud_rag_answer(question: str, lang: str = "ru") -> tuple[str, list[dict]]:
-    """Small Render-demo fallback: query Qdrant directly and answer from hits.
+    """Render-demo fallback with lexical re-ranking and intent filtering.
 
-    This protects the demo from empty planner/model responses. It does not replace
-    the full LangGraph pipeline; it only runs when the normal answer is blank.
+    The first version dumped raw semantic top-k results. On broad questions such as
+    "Какие образовательные программы доступны?" FastEmbed can return adjacent but
+    wrong chunks like dormitory or Serpin FAQ. This version pulls more candidates,
+    ranks them by query terms + domain markers, and refuses to answer from off-intent
+    chunks.
     """
     try:
-        hits = search_debug(question, _get_search_index(), top_k=6)
+        hits = _retrieve_demo_hits(question)
     except Exception as exc:
         return f"Ошибка поиска в Qdrant: {exc}", []
 
-    hits = [hit for hit in hits if str(hit.get("text") or "").strip()]
+    hits = [hit for hit in hits if str(hit.get("text") or "").strip() and float(hit.get("_demo_rank") or 0.0) > 0.5]
     if not hits:
         return (
-            "В Qdrant подключение есть, но по этому вопросу не найдено релевантных chunks. "
-            "Проверьте, что коллекция ai_talapker_fastembed_384 заполнена и backend использует именно её.",
+            "В базе знаний есть chunks, но по этому вопросу не найдено достаточно релевантных фрагментов. "
+            "Проверьте, что загружены именно chunks с образовательными программами, а не только сроки, общежитие и FAQ.",
             [],
         )
 
@@ -222,12 +398,12 @@ def _simple_cloud_rag_answer(question: str, lang: str = "ru") -> tuple[str, list
             "content": (
                 "You are AI-Talapker, a university admissions assistant. "
                 "Answer only using the provided context. If the context is insufficient, say so briefly. "
-                "Answer in Russian unless the user asks another language. Do not invent facts."
+                "Do not list facts that are not in the context. Answer in Russian."
             ),
         },
         {
             "role": "user",
-            "content": f"Question: {question}\n\nContext:\n{context}\n\nGive a concise grounded answer.",
+            "content": f"Question: {question}\n\nContext:\n{context}\n\nGive a concise grounded answer. Do not mention unrelated chunks.",
         },
     ]
     try:
@@ -267,9 +443,10 @@ async def health():
 
 @app.get("/debug/rag")
 async def debug_rag(q: str = "Какие образовательные программы есть?"):
-    hits = search_debug(q, _get_search_index(), top_k=5)
+    hits = _retrieve_demo_hits(q)
     return {
         "query": q,
+        "intent": _query_intent(q),
         "hit_count": len(hits),
         "hits": hits,
     }
