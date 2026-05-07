@@ -66,6 +66,21 @@ def _make_qdrant_client(qdrant_path: str = QDRANT_PATH) -> QdrantClient:
     return QdrantClient(path=qdrant_path)
 
 
+def open_existing_index(
+    qdrant_path: str = QDRANT_PATH,
+    collection_name: str = QDRANT_COLLECTION,
+) -> QdrantIndex:
+    """Open a Qdrant collection without rebuilding or upserting chunks.
+
+    Cloud demo mode uses Qdrant Cloud as the persisted vector store.  Render
+    should not rebuild the index on startup, but the full LangGraph retriever
+    still needs a QdrantIndex object so nodes such as lookup, suggestions and
+    debug search can use the same retrieval API as the local version.
+    """
+    client = _make_qdrant_client(qdrant_path)
+    return QdrantIndex(client=client, collection_name=collection_name)
+
+
 def _vectors_config(vector_size: int):
     params = VectorParams(size=int(vector_size), distance=Distance.COSINE)
     if QDRANT_VECTOR_NAME:

@@ -1,5 +1,4 @@
 import os
-import re
 import time
 from collections import defaultdict, deque
 from pathlib import Path
@@ -22,9 +21,9 @@ from core.admin_auth import (
     revoke_api_key,
     update_admin_user,
 )
-from core.config import INPUT_DATA_DIR, KNOWLEDGE_ENTRIES_PATH, KNOWLEDGE_REGISTRY_PATH, RAG_CHUNKS_PATH, QDRANT_COLLECTION
+from core.config import INPUT_DATA_DIR, KNOWLEDGE_ENTRIES_PATH, KNOWLEDGE_REGISTRY_PATH, RAG_CHUNKS_PATH
 from core.entry_store import delete_curated_entry, load_curated_entries, upsert_curated_entry
-from core.generation import fallback_suggestions, generate_from_messages, generate_session_suggestions, generate_suggestions
+from core.generation import fallback_suggestions, generate_session_suggestions, generate_suggestions
 from core.interview_service import refresh_interview_metadata
 from core.knowledge_assets import (
     get_index,
@@ -38,7 +37,7 @@ from core.knowledge_registry import load_registry, upsert_registry
 from core.normalize_input_data import parse_source_content
 from core.ocr_ingest import OCR_INPUT_EXTENSIONS, process_ocr_upload
 from core.orchestrator import run_agent_turn
-from core.rag import QdrantIndex, _make_qdrant_client, search_debug
+from core.rag import search_debug
 from core.security import (
     DEFAULT_MAX_UPLOAD_BYTES,
     safe_child_path,
@@ -121,300 +120,6 @@ app.add_middleware(
 )
 
 
-
-_CLOUD_SEARCH_INDEX: QdrantIndex | None = None
-
-
-def _get_search_index() -> QdrantIndex:
-    """Return an initialized QdrantIndex even when APP_DISABLE_MODEL_LOAD=1.
-
-    In Render demo mode APP_DISABLE_MODEL_LOAD=1 intentionally skips build_index()
-    during import, so knowledge_assets.get_index() returns None. Search can still
-    work against an already-populated Qdrant Cloud collection; it only needs a
-    client + collection name, not local model preloading.
-    """
-    global _CLOUD_SEARCH_INDEX
-    existing = get_index()
-    if existing is not None:
-        return existing
-    if _CLOUD_SEARCH_INDEX is None:
-        _CLOUD_SEARCH_INDEX = QdrantIndex(
-            client=_make_qdrant_client(),
-            collection_name=os.getenv("QDRANT_COLLECTION", QDRANT_COLLECTION).strip() or QDRANT_COLLECTION,
-        )
-    return _CLOUD_SEARCH_INDEX
-
-def _direct_chat_answer(message: str, lang: str = "ru") -> str | None:
-    text = (message or "").strip().lower().replace("ё", "е")
-    compact = " ".join(text.split())
-    if (
-        compact in {"привет", "здравствуйте", "салам", "салем", "сәлем", "hello", "hi"}
-        or compact.startswith("прив")
-        or compact.startswith("салам")
-        or compact.startswith("салем")
-        or compact.startswith("сәлем")
-    ):
-        return (
-            "Здравствуйте. Я AI-Talapker, демонстрационный ассистент по поступлению. "
-            "Могу отвечать на вопросы по образовательным программам, документам, грантам, общежитию и срокам приёма."
-        )
-    if compact in {"как дела", "как ты", "қалың қалай", "калайсын", "қалайсың"}:
-        return (
-            "Работаю в демонстрационном режиме. Задайте вопрос по поступлению, программам, документам, грантам, "
-            "общежитию или срокам приёма."
-        )
-    return None
-
-
-def _blank_answer_fallback(lang: str = "ru") -> str:
-    return (
-        "Сервер получил запрос, но модель или база знаний вернула пустой ответ. "
-        "Проверьте OPENROUTER_CHAT_MODEL, QDRANT_COLLECTION и наличие загруженных chunks в Qdrant."
-    )
-
-
-_STOPWORDS = {
-    "какие", "какая", "какой", "есть", "доступны", "доступные", "для", "что", "это", "или", "при",
-    "меня", "мне", "можно", "нужно", "надо", "по", "в", "на", "и", "а", "the", "what", "which",
-}
-
-_PROGRAM_MARKERS = (
-    "образовательн", "программ", "специальност", "бакалавр", "магистр", "докторан",
-    "информат", "математ", "software", "computer", "data", "искусствен", "машин", "втпо",
-    "b0", "b057", "b058", "b059", "b063", "b064", "b065", "b066", "b067", "b068", "b071",
-)
-
-_NOISE_MARKERS_FOR_PROGRAM_QUERY = (
-    "общежит", "заселени", "серпін", "серпин", "сроки", "календар", "грант", "льгот", "военн",
-)
-
-
-def _clean_text(value: object) -> str:
-    return " ".join(str(value or "").replace("\x00", " ").split())
-
-
-def _tokenize(text: str) -> list[str]:
-    return [token for token in re.findall(r"[a-zа-яәғқңөұүһі0-9]+", (text or "").lower().replace("ё", "е")) if len(token) > 2 and token not in _STOPWORDS]
-
-
-def _query_intent(question: str) -> str:
-    text = (question or "").lower().replace("ё", "е")
-    if any(marker in text for marker in ("общежит", "заселен", "проживан")):
-        return "housing"
-    if any(marker in text for marker in ("документ", "заявлен", "удостовер", "аттестат")):
-        return "documents"
-    if any(marker in text for marker in ("срок", "календар", "дата", "когда")):
-        return "timeline"
-    if any(marker in text for marker in ("грант", "серпін", "серпин", "льгот")):
-        return "grants"
-    if any(marker in text for marker in ("образователь", "программ", "специальност", "математ", "информат", "ент", "профиль")):
-        return "programs"
-    return "general"
-
-
-def _hit_text_blob(hit: dict) -> str:
-    meta = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
-    parts = [
-        hit.get("title"), hit.get("text"), hit.get("source_id"), hit.get("source_file"), hit.get("domain"),
-        hit.get("class_name"), hit.get("schema"), hit.get("entry_type"), meta.get("sheet_name"), meta.get("record_type"),
-        meta.get("class_name"), meta.get("domain"),
-    ]
-    return _clean_text(" ".join(str(part or "") for part in parts)).lower().replace("ё", "е")
-
-
-def _program_hit_allowed(hit: dict, question: str) -> bool:
-    blob = _hit_text_blob(hit)
-    q = (question or "").lower().replace("ё", "е")
-    has_program_signal = any(marker in blob for marker in _PROGRAM_MARKERS)
-    if not has_program_signal:
-        return False
-    # Do not let broad program queries fall into dormitory/Serpin/timeline chunks.
-    if not any(marker in q for marker in ("общежит", "серпін", "серпин", "срок", "календар", "грант", "льгот")):
-        noisy = sum(1 for marker in _NOISE_MARKERS_FOR_PROGRAM_QUERY if marker in blob)
-        if noisy and not any(marker in blob for marker in ("b0", "группа образователь", "образовательная программа", "наименование образователь")):
-            return False
-    return True
-
-
-def _rank_hit(hit: dict, question: str, semantic_rank: int = 0) -> float:
-    blob = _hit_text_blob(hit)
-    q_tokens = _tokenize(question)
-    score = float(hit.get("score") or 0.0) * 3.0
-    if semantic_rank:
-        score += max(0.0, 1.5 - semantic_rank * 0.05)
-    for token in q_tokens:
-        if token in blob:
-            score += 2.5
-        elif len(token) >= 5 and any(word.startswith(token[:5]) for word in _tokenize(blob[:3000])):
-            score += 1.2
-    intent = _query_intent(question)
-    if intent == "programs":
-        score += sum(1.8 for marker in _PROGRAM_MARKERS if marker in blob)
-        if _program_hit_allowed(hit, question):
-            score += 6.0
-        else:
-            score -= 10.0
-    elif intent == "housing" and "общежит" in blob:
-        score += 8.0
-    elif intent == "documents" and any(marker in blob for marker in ("документ", "удостовер", "аттестат", "заявлен")):
-        score += 8.0
-    elif intent == "timeline" and any(marker in blob for marker in ("срок", "календар", "дата", "хронолог")):
-        score += 8.0
-    elif intent == "grants" and any(marker in blob for marker in ("грант", "серпін", "серпин", "льгот")):
-        score += 8.0
-    return score
-
-
-def _scroll_payload_hits(question: str, *, limit: int = 1200) -> list[dict]:
-    index = _get_search_index()
-    collected: list[dict] = []
-    offset = None
-    remaining = max(1, int(limit))
-    while remaining > 0:
-        batch_size = min(256, remaining)
-        points, offset = index.client.scroll(
-            collection_name=index.collection_name,
-            limit=batch_size,
-            offset=offset,
-            with_payload=True,
-            with_vectors=False,
-        )
-        for point in points or []:
-            payload = dict(getattr(point, "payload", None) or {})
-            text = _clean_text(payload.get("text") or payload.get("embedding_text") or payload.get("raw_text"))
-            if not text:
-                continue
-            hit = {
-                "score": 0.0,
-                "source_id": str(payload.get("source_id", "")),
-                "class_name": str(payload.get("class_name", "")),
-                "domain": str(payload.get("domain") or payload.get("class_name", "")),
-                "schema": str(payload.get("schema", "")),
-                "title": str(payload.get("title", "")),
-                "text": text,
-                "chunk_id": str(payload.get("chunk_id", "")),
-                "logical_group_id": str(payload.get("logical_group_id") or ""),
-                "entry_type": str(payload.get("entry_type") or payload.get("schema") or ""),
-                "source_file": str(payload.get("source_file") or ""),
-                "metadata": dict(payload.get("metadata", {}) or {}),
-            }
-            collected.append(hit)
-        if offset is None:
-            break
-        remaining -= batch_size
-    return collected
-
-
-def _merge_and_rank_hits(question: str, semantic_hits: list[dict], lexical_hits: list[dict]) -> list[dict]:
-    merged: dict[str, dict] = {}
-    for semantic_rank, hit in enumerate(semantic_hits or [], start=1):
-        key = str(hit.get("chunk_id") or hit.get("logical_group_id") or (hit.get("title", "") + hit.get("text", "")[:120]))
-        item = dict(hit)
-        item["_semantic_rank"] = semantic_rank
-        merged[key] = item
-    for hit in lexical_hits or []:
-        key = str(hit.get("chunk_id") or hit.get("logical_group_id") or (hit.get("title", "") + hit.get("text", "")[:120]))
-        if key not in merged:
-            merged[key] = dict(hit)
-    intent = _query_intent(question)
-    ranked = []
-    for hit in merged.values():
-        if not _clean_text(hit.get("text")):
-            continue
-        if intent == "programs" and not _program_hit_allowed(hit, question):
-            continue
-        rank = _rank_hit(hit, question, int(hit.get("_semantic_rank") or 0))
-        hit["_demo_rank"] = round(rank, 4)
-        ranked.append(hit)
-    ranked.sort(key=lambda row: float(row.get("_demo_rank") or 0.0), reverse=True)
-    return ranked
-
-
-def _retrieve_demo_hits(question: str) -> list[dict]:
-    semantic_hits: list[dict] = []
-    try:
-        semantic_hits = search_debug(question, _get_search_index(), top_k=30)
-    except Exception:
-        semantic_hits = []
-    lexical_hits = _scroll_payload_hits(question, limit=int(os.getenv("APP_DEMO_SCROLL_LIMIT", "1500")))
-    return _merge_and_rank_hits(question, semantic_hits, lexical_hits)[:8]
-
-
-def _format_context_hit(hit: dict, index: int) -> str:
-    title = str(hit.get("title") or hit.get("source_id") or hit.get("source_file") or f"Фрагмент {index}").strip()
-    text = str(hit.get("text") or "").strip()
-    if len(text) > 900:
-        text = text[:900].rstrip() + "..."
-    return f"[{index}] {title}\n{text}"
-
-
-def _deterministic_rag_answer(question: str, hits: list[dict]) -> str:
-    intent = _query_intent(question)
-    if intent == "programs":
-        header = "По базе знаний нашёл фрагменты, относящиеся к образовательным программам:"
-    else:
-        header = "По базе знаний нашёл релевантные фрагменты:"
-    lines = [header]
-    for index, hit in enumerate(hits[:4], start=1):
-        title = str(hit.get("title") or hit.get("source_file") or f"Источник {index}").strip()
-        text = str(hit.get("text") or "").strip()
-        if not text:
-            continue
-        text = " ".join(text.split())
-        if len(text) > 420:
-            text = text[:420].rstrip() + "..."
-        lines.append(f"{index}. {title}: {text}")
-    if len(lines) == 1:
-        return _blank_answer_fallback("ru")
-    return "\n".join(lines)
-
-
-def _simple_cloud_rag_answer(question: str, lang: str = "ru") -> tuple[str, list[dict]]:
-    """Render-demo fallback with lexical re-ranking and intent filtering.
-
-    The first version dumped raw semantic top-k results. On broad questions such as
-    "Какие образовательные программы доступны?" FastEmbed can return adjacent but
-    wrong chunks like dormitory or Serpin FAQ. This version pulls more candidates,
-    ranks them by query terms + domain markers, and refuses to answer from off-intent
-    chunks.
-    """
-    try:
-        hits = _retrieve_demo_hits(question)
-    except Exception as exc:
-        return f"Ошибка поиска в Qdrant: {exc}", []
-
-    hits = [hit for hit in hits if str(hit.get("text") or "").strip() and float(hit.get("_demo_rank") or 0.0) > 0.5]
-    if not hits:
-        return (
-            "В базе знаний есть chunks, но по этому вопросу не найдено достаточно релевантных фрагментов. "
-            "Проверьте, что загружены именно chunks с образовательными программами, а не только сроки, общежитие и FAQ.",
-            [],
-        )
-
-    context = "\n\n".join(_format_context_hit(hit, idx) for idx, hit in enumerate(hits[:5], start=1))
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are AI-Talapker, a university admissions assistant. "
-                "Answer only using the provided context. If the context is insufficient, say so briefly. "
-                "Do not list facts that are not in the context. Answer in Russian."
-            ),
-        },
-        {
-            "role": "user",
-            "content": f"Question: {question}\n\nContext:\n{context}\n\nGive a concise grounded answer. Do not mention unrelated chunks.",
-        },
-    ]
-    try:
-        answer = generate_from_messages(messages, max_new_tokens=450, ctx_texts=[h.get("text", "") for h in hits[:5]]).strip()
-    except Exception:
-        answer = ""
-    if not answer:
-        answer = _deterministic_rag_answer(question, hits)
-    return answer, hits
-
-
 _rate_windows: dict[str, deque[float]] = defaultdict(deque)
 
 
@@ -436,18 +141,39 @@ def rate_limit(max_requests: int, window_seconds: int, key_prefix: str):
     return dependency
 
 
+@app.get("/")
+async def root():
+    return {"ok": True, "service": "AI-Talapker backend", "docs": "/docs", "health": "/health"}
+
+
+@app.head("/")
+async def root_head():
+    return {}
+
+
 @app.get("/health")
 async def health():
-    return {"ok": True}
+    index = get_index()
+    return {
+        "ok": True,
+        "index_ready": index is not None,
+        "collection": getattr(index, "collection_name", None),
+        "env": os.getenv("APP_ENV", ""),
+        "embedding_backend": os.getenv("APP_EMBEDDING_BACKEND") or os.getenv("EMBEDDING_PROVIDER", ""),
+        "generation_backend": os.getenv("APP_GENERATION_BACKEND") or os.getenv("LLM_PROVIDER", ""),
+    }
 
 
 @app.get("/debug/rag")
-async def debug_rag(q: str = "Какие образовательные программы есть?"):
-    hits = _retrieve_demo_hits(q)
+async def debug_rag(q: str = "Какие образовательные программы есть?", top_k: int = 5):
+    index = get_index()
+    if index is None:
+        raise HTTPException(status_code=503, detail="Qdrant index is not initialized")
+    hits = search_debug(q, index, top_k=max(1, min(int(top_k or 5), 20)))
     return {
         "query": q,
-        "intent": _query_intent(q),
         "hit_count": len(hits),
+        "collection": index.collection_name,
         "hits": hits,
     }
 
@@ -455,13 +181,6 @@ async def debug_rag(q: str = "Какие образовательные прог
 @app.on_event("shutdown")
 async def shutdown_event():
     shutdown_knowledge_assets()
-    global _CLOUD_SEARCH_INDEX
-    if _CLOUD_SEARCH_INDEX is not None:
-        try:
-            _CLOUD_SEARCH_INDEX.client.close()
-        except Exception:
-            pass
-        _CLOUD_SEARCH_INDEX = None
 
 @app.post("/ask", response_model=Answer)
 async def ask_question(req: Ask, _: None = Depends(rate_limit(30, 60, "ask"))):
@@ -477,15 +196,6 @@ async def ask_question(req: Ask, _: None = Depends(rate_limit(30, 60, "ask"))):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, _: None = Depends(rate_limit(30, 60, "chat"))):
-    direct_answer = _direct_chat_answer(req.message, req.lang)
-    if direct_answer:
-        return ChatResponse(
-            session_id=req.session_id or "",
-            answer=direct_answer,
-            route="direct",
-            profile_complete=False,
-        )
-
     result = run_agent_turn(
         message=req.message,
         lang=req.lang,
@@ -496,15 +206,12 @@ async def chat(req: ChatRequest, _: None = Depends(rate_limit(30, 60, "chat"))):
         message_id=req.message_id,
     )
     answer = str(result.get("answer") or "").strip()
-    route = result.get("route", "knowledge")
     if not answer:
-        answer, hits = _simple_cloud_rag_answer(req.message, req.lang)
-        if hits:
-            route = "simple_rag_fallback"
+        answer = "There is not enough information in the database to answer this question."
     return ChatResponse(
         session_id=result.get("session_id") or req.session_id or "",
-        answer=answer or _blank_answer_fallback(req.lang),
-        route=route,
+        answer=answer,
+        route=result.get("route", "knowledge"),
         profile_complete=bool(result.get("profile_complete")),
     )
 

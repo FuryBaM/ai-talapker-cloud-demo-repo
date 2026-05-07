@@ -10,6 +10,7 @@ from core.knowledge_registry import load_registry
 from core.programs import load_program_catalog
 from core.rag import (
     build_index,
+    open_existing_index,
     build_rag_chunks,
     build_rag_chunks_for_documents,
     build_rag_documents,
@@ -29,7 +30,26 @@ from core.rag import (
 )
 
 
-INDEX = None if os.getenv("APP_DISABLE_MODEL_LOAD", "0").strip().lower() in {"1", "true", "yes", "on"} else build_index()
+def _env_flag(name: str, default: str = "0") -> bool:
+    return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _load_initial_index():
+    """Initialize retrieval without forcing local index rebuild in cloud mode.
+
+    APP_DISABLE_MODEL_LOAD=1 is used on Render to prevent expensive startup
+    rebuilds and old local model loading.  The full LangGraph pipeline still
+    needs a QdrantIndex object, so by default we open the already-populated
+    Qdrant collection instead of returning None.
+    """
+    if _env_flag("APP_DISABLE_MODEL_LOAD"):
+        if _env_flag("APP_USE_EXISTING_QDRANT_INDEX", "1"):
+            return open_existing_index()
+        return None
+    return build_index()
+
+
+INDEX = _load_initial_index()
 PROGRAMS = load_program_catalog()
 
 
