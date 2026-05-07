@@ -22,6 +22,11 @@ from core.config import (
     EMBED_GGUF_N_GPU_LAYERS,
     EMBED_GGUF_PATH,
     EMBED_MAX_SEQ_LENGTH,
+    FASTEMBED_BATCH_SIZE,
+    FASTEMBED_CACHE_DIR,
+    FASTEMBED_DIMENSIONS,
+    FASTEMBED_MODEL,
+    FASTEMBED_THREADS,
     EMBED_MODEL_DIR,
     GEN_BACKEND,
     GEN_GGUF_CHAT_FORMAT,
@@ -272,6 +277,127 @@ class OpenRouterEmbeddingModel:
         vectors_list: list[list[float]] = []
         for start in range(0, len(items), batch):
             vectors_list.extend(self._embed_batch([str(item or "") for item in items[start : start + batch]]))
+        vectors = np.array(vectors_list, dtype=np.float32)
+        if normalize_embeddings and vectors.size:
+            norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+            norms[norms == 0] = 1.0
+            vectors = vectors / norms
+        if single:
+            vectors = vectors[0]
+        if convert_to_numpy:
+            return vectors.astype(np.float32)
+        return vectors.tolist()
+
+
+class FastEmbedEmbeddingModel:
+    """SentenceTransformer-compatible adapter over Qdrant FastEmbed.
+
+    This backend is for free cloud demos: embeddings are generated on CPU in the
+    FastAPI container through ONNX Runtime, without OpenRouter embedding credits
+    and without PyTorch/sentence-transformers.
+    """
+
+    backend = "fastembed"
+
+    def __init__(
+        self,
+        *,
+        model_name: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+        cache_dir: str = "",
+        threads: int = 1,
+        batch_size: int = 16,
+        dimensions: int = 384,
+    ) -> None:
+        self.model_name = str(model_name or "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2").strip()
+        self.cache_dir = str(cache_dir or "").strip()
+        self.threads = int(threads or 1)
+        self.batch_size = max(1, int(batch_size or 16))
+        self._dimension: int | None = int(dimensions or 0) or None
+        self.max_seq_length = 512
+        self._model = None
+
+    def _load(self):
+        if self._model is not None:
+            return self._model
+        try:
+            from fastembed import TextEmbedding  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError(
+                "FastEmbed backend requires the 'fastembed' package. "
+                "Install cloud requirements or run: pip install fastembed"
+            ) from exc
+
+        kwargs: dict[str, Any] = {"model_name": self.model_name}
+        if self.cache_dir:
+            Path(self.cache_dir).mkdir(parents=True, exist_ok=True)
+            kwargs["cache_dir"] = self.cache_dir
+        if self.threads > 0:
+            kwargs["threads"] = self.threads
+        try:
+            self._model = TextEmbedding(**kwargs)
+        except TypeError:
+            # Older fastembed versions have a narrower constructor.
+            kwargs.pop("threads", None)
+            self._model = TextEmbedding(**kwargs)
+        return self._model
+
+    def _infer_dimension_from_registry(self) -> int | None:
+        try:
+            from fastembed import TextEmbedding  # type: ignore
+
+            for item in TextEmbedding.list_supported_models():
+                if not isinstance(item, dict):
+                    continue
+                model = str(item.get("model") or item.get("model_name") or item.get("name") or "")
+                if model != self.model_name:
+                    continue
+                for key in ("dim", "dimension", "dimensions", "size"):
+                    value = item.get(key)
+                    if isinstance(value, int) and value > 0:
+                        return value
+                    if isinstance(value, str) and value.isdigit():
+                        return int(value)
+        except Exception:
+            return None
+        return None
+
+    def get_sentence_embedding_dimension(self) -> int:
+        if self._dimension is None:
+            self._dimension = self._infer_dimension_from_registry()
+        if self._dimension is None:
+            self._dimension = int(len(self.encode("dimension probe", convert_to_numpy=False)))
+        return int(self._dimension)
+
+    def _embed_items(self, items: list[str], batch_size: int) -> list[list[float]]:
+        model = self._load()
+        try:
+            generated = model.embed(items, batch_size=max(1, int(batch_size or self.batch_size)))
+        except TypeError:
+            generated = model.embed(items)
+        vectors = []
+        for vector in generated:
+            if hasattr(vector, "tolist"):
+                vectors.append(vector.tolist())
+            else:
+                vectors.append(list(vector))
+        return vectors
+
+    def encode(
+        self,
+        sentences: str | list[str],
+        convert_to_numpy: bool = True,
+        normalize_embeddings: bool = True,
+        batch_size: int = EMBED_BATCH_SIZE,
+        show_progress_bar: bool = False,
+        **_: Any,
+    ):
+        single = isinstance(sentences, str)
+        items = [sentences] if single else list(sentences or [])
+        safe_batch = max(1, int(batch_size or self.batch_size or 1))
+        vectors_list: list[list[float]] = []
+        for start in range(0, len(items), safe_batch):
+            batch = [str(item or "") for item in items[start : start + safe_batch]]
+            vectors_list.extend(self._embed_items(batch, safe_batch))
         vectors = np.array(vectors_list, dtype=np.float32)
         if normalize_embeddings and vectors.size:
             norms = np.linalg.norm(vectors, axis=1, keepdims=True)
@@ -674,6 +800,14 @@ torch = _configure_torch()
 
 
 def _load_embedding_pair():
+    if EMBED_BACKEND == "fastembed":
+        return ApproxTextTokenizer(), FastEmbedEmbeddingModel(
+            model_name=FASTEMBED_MODEL,
+            cache_dir=FASTEMBED_CACHE_DIR,
+            threads=FASTEMBED_THREADS,
+            batch_size=FASTEMBED_BATCH_SIZE,
+            dimensions=FASTEMBED_DIMENSIONS,
+        )
     if EMBED_BACKEND == "openrouter":
         return ApproxTextTokenizer(), OpenRouterEmbeddingModel(
             api_key=OPENROUTER_API_KEY,

@@ -91,6 +91,8 @@ def _normalize_backend(raw: Any, default: str) -> str:
         "api": "openrouter",
         "cloud": "openrouter",
         "open_router": "openrouter",
+        "fast_embed": "fastembed",
+        "qdrant_fastembed": "fastembed",
     }
     return aliases.get(value, value)
 
@@ -285,6 +287,18 @@ OPENROUTER_APP_TITLE = os.getenv(
     str(_get(APP_CONFIG, "openrouter", "app_title", default="AI-Talapker") or "AI-Talapker"),
 ).strip()
 OPENROUTER_TIMEOUT = _get_int_env("OPENROUTER_TIMEOUT", int(_get(APP_CONFIG, "openrouter", "timeout", default=60)))
+
+FASTEMBED_MODEL = os.getenv(
+    "FASTEMBED_MODEL",
+    str(_get(APP_CONFIG, "fastembed", "model", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2") or "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"),
+).strip()
+FASTEMBED_CACHE_DIR = os.getenv(
+    "FASTEMBED_CACHE_DIR",
+    str(_get(APP_CONFIG, "fastembed", "cache_dir", default=str(BASE_DIR / "models" / "fastembed")) or str(BASE_DIR / "models" / "fastembed")),
+).strip()
+FASTEMBED_THREADS = _get_int_env("FASTEMBED_THREADS", int(_get(APP_CONFIG, "fastembed", "threads", default=1)))
+FASTEMBED_BATCH_SIZE = _get_int_env("FASTEMBED_BATCH_SIZE", int(_get(APP_CONFIG, "fastembed", "batch_size", default=16)))
+FASTEMBED_DIMENSIONS = _get_int_env("FASTEMBED_DIMENSIONS", int(_get(APP_CONFIG, "fastembed", "dimensions", default=384)))
 ANSWER_FILTER_MODE = str(_get(APP_CONFIG, "answer_filter", "mode", default="balanced")).strip().lower()
 ANSWER_FILTER_MIN_SUPPORTED_TERMS = int(_get(APP_CONFIG, "answer_filter", "min_supported_terms", default=1))
 ANSWER_FILTER_GENERIC_OVERLAP_THRESHOLD = float(

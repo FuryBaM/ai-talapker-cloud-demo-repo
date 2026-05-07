@@ -11,14 +11,22 @@ paths:
 
 models:
   embedding:
-    backend: openrouter
-    batch_size: 8
+    backend: fastembed
+    batch_size: 16
     max_seq_length: 512
   generation:
     backend: openrouter
   guard:
     enabled: false
     backend: openrouter
+
+fastembed:
+  # Multilingual and small enough for Render Free CPU/RAM.
+  model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+  dimensions: 384
+  cache_dir: models/fastembed
+  threads: 1
+  batch_size: 16
 
 openrouter:
   base_url: https://openrouter.ai/api/v1
@@ -66,7 +74,7 @@ qdrant:
   url: ""
   api_key: ""
   path: storage/qdrant
-  collection: ai_talapker_openrouter_1536
+  collection: ai_talapker_fastembed_384
   vector_name: ""
   timeout: 30
   prefer_grpc: false
