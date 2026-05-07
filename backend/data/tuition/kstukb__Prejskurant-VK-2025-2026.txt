@@ -1,0 +1,11 @@
+META_TITLE: kstukb
+META_SOURCE_FILE: kstukb.xlsx
+META_DOMAIN: tuition
+META_SHEET: Prejskurant-VK-2025-2026
+
+TABLE_1:
+ROW: Стоимость обучения 1-го студента, обучающегося на платной основе на военной кафедре поступившего в 2025 году.
+ROW: Примечание: цены в тенге.
+ROW: Источник: https://www.kstu.kz/wp-content/uploads/2023/02/Prejskurant-VK-2025-2026.pdf
+ROW: Номер | Наименование | Стоимость, тенге | Учебный год
+ROW: 1 | Военная кафедра | 263300 | 2025-2026

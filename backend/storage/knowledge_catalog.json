@@ -1,0 +1,397 @@
+{
+  "domains": [
+    {
+      "name": "benefits",
+      "description": "Benefits, discounts, and grants",
+      "enabled": true
+    },
+    {
+      "name": "contacts",
+      "description": "Contacts, addresses, and communication channels",
+      "enabled": true
+    },
+    {
+      "name": "documents",
+      "description": "Required documents and admission forms",
+      "enabled": true
+    },
+    {
+      "name": "housing",
+      "description": "Dormitory and housing information",
+      "enabled": true
+    },
+    {
+      "name": "programs",
+      "description": "Educational programs and specializations",
+      "enabled": true
+    },
+    {
+      "name": "scores",
+      "description": "Threshold scores and exam requirements",
+      "enabled": true
+    },
+    {
+      "name": "timeline",
+      "description": "Admission and academic timelines",
+      "enabled": true
+    },
+    {
+      "name": "tuition",
+      "description": "Tuition and fees",
+      "enabled": true
+    },
+    {
+      "name": "university_info",
+      "description": "General university information",
+      "enabled": true
+    }
+  ],
+  "schemas": [
+    {
+      "name": "dormitory_tuition_entry",
+      "handler": "dormitory_tuition_entry",
+      "description": "Dormitory price row",
+      "enabled": true,
+      "fields": []
+    },
+    {
+      "name": "generic_text",
+      "handler": "generic_text",
+      "description": "Fallback plain text entry",
+      "enabled": true,
+      "fields": []
+    },
+    {
+      "name": "program_entry",
+      "handler": "program_entry",
+      "description": "Program row extracted from table",
+      "enabled": true,
+      "fields": [
+        {
+          "name": "column_a",
+          "label": "Номер",
+          "field_type": "number",
+          "required": true,
+          "description": "",
+          "preset": "column:A|fields",
+          "system_field": "",
+          "validation": {}
+        },
+        {
+          "name": "column_b",
+          "label": "Группа образовательных программ",
+          "field_type": "text",
+          "required": true,
+          "description": "",
+          "preset": "column:B|fields",
+          "system_field": "",
+          "validation": {}
+        },
+        {
+          "name": "column_c",
+          "label": "Очное полное, грант",
+          "field_type": "number",
+          "required": true,
+          "description": "",
+          "preset": "column:C|fields",
+          "system_field": "",
+          "validation": {}
+        },
+        {
+          "name": "column_d",
+          "label": "Очное полное, платное",
+          "field_type": "number",
+          "required": true,
+          "description": "",
+          "preset": "column:D|fields",
+          "system_field": "",
+          "validation": {}
+        },
+        {
+          "name": "column_e",
+          "label": "Очно-сокращенное, грант",
+          "field_type": "number",
+          "required": true,
+          "description": "",
+          "preset": "column:E|fields",
+          "system_field": "",
+          "validation": {}
+        },
+        {
+          "name": "column_f",
+          "label": "Очно-сокращенное, платное",
+          "field_type": "number",
+          "required": true,
+          "description": "",
+          "preset": "column:F|fields",
+          "system_field": "",
+          "validation": {}
+        },
+        {
+          "name": "column_g",
+          "label": "Учебный год",
+          "field_type": "text",
+          "required": true,
+          "description": "",
+          "preset": "column:G|fields",
+          "system_field": "",
+          "validation": {}
+        },
+        {
+          "name": "document_title",
+          "label": "Заголовок документа",
+          "field_type": "text",
+          "required": false,
+          "description": "",
+          "preset": "cell:A1|metadata",
+          "system_field": "",
+          "validation": {}
+        },
+        {
+          "name": "note",
+          "label": "Примечание",
+          "field_type": "text",
+          "required": false,
+          "description": "",
+          "preset": "cell:A2|metadata",
+          "system_field": "",
+          "validation": {}
+        },
+        {
+          "name": "source_url",
+          "label": "Источник",
+          "field_type": "url",
+          "required": false,
+          "description": "",
+          "preset": "cell:A3|metadata",
+          "system_field": "",
+          "validation": {}
+        }
+      ]
+    },
+    {
+      "name": "program_text",
+      "handler": "program_text",
+      "description": "Program text description",
+      "enabled": true,
+      "fields": []
+    },
+    {
+      "name": "program_tuition_entry",
+      "handler": "program_tuition_entry",
+      "description": "Tuition row per program",
+      "enabled": true,
+      "fields": []
+    },
+    {
+      "name": "sectioned_text",
+      "handler": "sectioned_text",
+      "description": "Structured text split by sections",
+      "enabled": true,
+      "fields": []
+    },
+    {
+      "name": "timeline_entry",
+      "handler": "timeline_entry",
+      "description": "Timeline row/event",
+      "enabled": true,
+      "fields": []
+    },
+    {
+      "name": "timeline_text",
+      "handler": "timeline_text",
+      "description": "Timeline descriptive text",
+      "enabled": true,
+      "fields": []
+    },
+    {
+      "name": "tuition_text",
+      "handler": "tuition_text",
+      "description": "Tuition-related text",
+      "enabled": true,
+      "fields": []
+    }
+  ],
+  "system_fields": [
+    {
+      "key": "domain",
+      "label": "Домен",
+      "type": "enum",
+      "values": [
+        "programs",
+        "tuition",
+        "admission_rules",
+        "housing",
+        "contacts"
+      ],
+      "applies_to": []
+    },
+    {
+      "key": "education_level",
+      "label": "Уровень образования",
+      "type": "enum",
+      "values": [
+        "bachelor",
+        "master",
+        "doctorate",
+        "college",
+        "military_department"
+      ],
+      "applies_to": []
+    },
+    {
+      "key": "language",
+      "label": "Язык",
+      "type": "enum",
+      "values": [
+        "ru",
+        "kk",
+        "en"
+      ],
+      "applies_to": []
+    },
+    {
+      "key": "program_code",
+      "label": "Шифр образовательной программы",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    },
+    {
+      "key": "program_name",
+      "label": "Наименование образовательной программы",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    },
+    {
+      "key": "tuition_price",
+      "label": "Стоимость обучения",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    },
+    {
+      "key": "program_group",
+      "label": "Шифр и наименование группы образовательных программ",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    },
+    {
+      "key": "education_area_code",
+      "label": "Код области образования",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    },
+    {
+      "key": "education_area_name",
+      "label": "Область образования",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    },
+    {
+      "key": "education_area",
+      "label": "Код и классификация области образования",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    },
+    {
+      "key": "training_direction_code",
+      "label": "Код направления подготовки",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    },
+    {
+      "key": "training_direction_name",
+      "label": "Направление подготовки",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    },
+    {
+      "key": "training_direction",
+      "label": "Код и классификация направления подготовки",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    },
+    {
+      "key": "program_group_code",
+      "label": "Шифр группы образовательных программ",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    },
+    {
+      "key": "program_group_name",
+      "label": "Наименование группы образовательных программ",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    },
+    {
+      "key": "program",
+      "label": "Шифр и наименование образовательной программы",
+      "type": "text",
+      "values": [],
+      "applies_to": [
+        "field",
+        "column",
+        "paragraph"
+      ]
+    }
+  ]
+}

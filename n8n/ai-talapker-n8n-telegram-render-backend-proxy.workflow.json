@@ -1,0 +1,223 @@
+{
+  "name": "AI-Talapker — Telegram to Render FastAPI Backend",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-talapker-telegram",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a3ed3f1a-f6b0-5119-bdeb-5207d38c5001",
+      "name": "Webhook: Telegram Update",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -980,
+        -80
+      ],
+      "webhookId": "68714aa9-9cfe-5e18-9b77-2d3d1ac0c38b"
+    },
+    {
+      "parameters": {
+        "jsCode": "// CONFIG AFTER IMPORT\n// 1) Put the public Render FastAPI URL. Example: https://ai-talapker-backend.onrender.com\nconst ASSISTANT_API_BASE = 'https://YOUR-RENDER-SERVICE.onrender.com';\n// 2) Put Telegram bot token here, or replace this value with process/env handling in your n8n instance.\nconst TELEGRAM_BOT_TOKEN = 'PUT_TELEGRAM_BOT_TOKEN_HERE';\n\nconst update = ($json.body && typeof $json.body === 'object') ? $json.body : $json;\nconst msg = update.message || update.edited_message || (update.callback_query ? update.callback_query.message : null) || {};\nconst chatId = msg.chat?.id;\nconst userText = String((update.callback_query?.data ?? msg.text ?? msg.caption ?? '') || '').trim();\n\nif (!chatId || !userText) {\n  return [{ json: { validationError: true, reason: 'No Telegram chat_id or text in update.' } }];\n}\n\nconst from = msg.from || update.callback_query?.from || {};\nconst sessionId = `telegram-${chatId}`;\nconst messageId = `tg-${msg.message_id || update.update_id || Date.now()}`;\nconst reply = msg.reply_to_message ? {\n  id: `tg-${msg.reply_to_message.message_id}`,\n  role: 'user',\n  content: String(msg.reply_to_message.text || msg.reply_to_message.caption || '').slice(0, 1000),\n  ts: msg.reply_to_message.date || null,\n} : null;\n\nreturn [{\n  json: {\n    validationError: false,\n    chatId,\n    telegramSendUrl: `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,\n    assistantUrl: `${ASSISTANT_API_BASE.replace(/\\/+$/, '')}/chat`,\n    assistantRequest: {\n      session_id: sessionId,\n      message_id: messageId,\n      message: userText,\n      lang: 'ru',\n      use_llm: true,\n      allow_web_search: false,\n      reply_to: reply,\n    },\n    telegramMeta: {\n      update_id: update.update_id,\n      chat_id: chatId,\n      user_id: from.id || null,\n      username: from.username || null,\n      first_name: from.first_name || null,\n      message_id: msg.message_id || null,\n      source: update.callback_query ? 'callback_query' : (update.edited_message ? 'edited_message' : 'message'),\n    },\n  }\n}];"
+      },
+      "id": "32ffa6ef-4017-55f5-b53d-24456aff0f07",
+      "name": "Normalize Telegram Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -740,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4ad05381-cf74-546c-bd56-eb7b7b509555",
+              "leftValue": "={{ $json.validationError }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b82fde1f-1ba9-53d4-80cb-e37115894f7f",
+      "name": "IF: Invalid Telegram Update?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -520,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.assistantUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.assistantRequest }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 300000
+        }
+      },
+      "id": "89a6feda-26bd-5e3b-8a85-5a362bb486ac",
+      "name": "Call FastAPI /chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -280,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $items('Normalize Telegram Update')[0].json;\nconst status = Number($json.statusCode || 0);\nconst body = $json.body || {};\nlet answer = '';\n\nif (status >= 200 && status < 300 && body && typeof body === 'object') {\n  answer = String(body.answer || '').trim();\n}\nif (!answer) {\n  answer = 'There is not enough information in the database to answer this question.';\n}\n\n// Telegram hard limit is 4096 chars. Keep margin for safety.\nif (answer.length > 3900) {\n  answer = answer.slice(0, 3850).trim() + '\\n\\n…';\n}\n\nreturn [{\n  json: {\n    telegramSendUrl: source.telegramSendUrl,\n    telegramRequest: {\n      chat_id: source.chatId,\n      text: answer,\n      disable_web_page_preview: true,\n    },\n    assistantStatus: status,\n    assistantBody: body,\n    meta: source.telegramMeta,\n  }\n}];"
+      },
+      "id": "b9d47b8c-d742-53cb-b83c-0172480ac4ee",
+      "name": "Build Telegram Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.telegramSendUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.telegramRequest }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "34cadf8c-2f77-55c4-adef-46fda9ea04e4",
+      "name": "Telegram sendMessage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        -40
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Telegram Update": {
+      "main": [
+        [
+          {
+            "node": "Normalize Telegram Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Telegram Update": {
+      "main": [
+        [
+          {
+            "node": "IF: Invalid Telegram Update?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Invalid Telegram Update?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Call FastAPI /chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call FastAPI /chat": {
+      "main": [
+        [
+          {
+            "node": "Build Telegram Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Telegram Reply": {
+      "main": [
+        [
+          {
+            "node": "Telegram sendMessage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-05-05T05:57:57.316146+00:00",
+  "versionId": "b94682ed-193b-5bb5-aa9e-e2a6a2a4e0d5"
+}

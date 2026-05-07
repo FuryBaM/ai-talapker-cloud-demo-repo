@@ -1,0 +1,346 @@
+[
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "scores\\kstukb__032-STU-Porogovye-bally-na-2025.txt",
+    "domain": "scores",
+    "type": "xlsx",
+    "sheet": "032-STU-Porogovye-bally-na-2025",
+    "rows": 29
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "university_info\\kstukb__bez-kvoty-polnoe-rus-25-26-v-kr.txt",
+    "domain": "university_info",
+    "type": "xlsx",
+    "sheet": "bez-kvoty-polnoe-rus-25-26-v-kr",
+    "rows": 28
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "university_info\\kstukb__sokrashhennoe-rus-25-26.txt",
+    "domain": "university_info",
+    "type": "xlsx",
+    "sheet": "sokrashhennoe-rus-25-26",
+    "rows": 28
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "tuition\\kstukb__Prejskurant-VK-2025-2026.txt",
+    "domain": "tuition",
+    "type": "xlsx",
+    "sheet": "Prejskurant-VK-2025-2026",
+    "rows": 5
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "tuition\\kstukb__Prejskurant-KIT-2025-2026.txt",
+    "domain": "tuition",
+    "type": "xlsx",
+    "sheet": "Prejskurant-KIT-2025-2026",
+    "rows": 7
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "university_info\\kstukb__Prejskurant-nabor25-26-bk-fiz.txt",
+    "domain": "university_info",
+    "type": "xlsx",
+    "sheet": "Prejskurant-nabor25-26-bk-fiz",
+    "rows": 10
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "university_info\\kstukb__Prejskurant-nabor25-26-bk-ur.txt",
+    "domain": "university_info",
+    "type": "xlsx",
+    "sheet": "Prejskurant-nabor25-26-bk-ur",
+    "rows": 10
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "university_info\\kstukb__Prejskurant-nabor25-26-mg.txt",
+    "domain": "university_info",
+    "type": "xlsx",
+    "sheet": "Prejskurant-nabor25-26-mg",
+    "rows": 5
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "university_info\\kstukb__Prejskurant-nabor25-26-dk.txt",
+    "domain": "university_info",
+    "type": "xlsx",
+    "sheet": "Prejskurant-nabor25-26-dk",
+    "rows": 5
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "scores\\kstukb__хронология.txt",
+    "domain": "scores",
+    "type": "xlsx",
+    "sheet": "хронология",
+    "rows": 15
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "housing\\kstukb__Прейскурант-общежитие.txt",
+    "domain": "housing",
+    "type": "xlsx",
+    "sheet": "Прейскурант-общежитие",
+    "rows": 6
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "housing\\kstukb__Предоставление_общежития_обучаю.txt",
+    "domain": "housing",
+    "type": "xlsx",
+    "sheet": "Предоставление общежития обучаю",
+    "rows": 13
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "programs\\kstukb__ОБРАЗОВАТЕЛЬНЫЕ_ПРОГРАММЫ_МАГИС.txt",
+    "domain": "programs",
+    "type": "xlsx",
+    "sheet": "ОБРАЗОВАТЕЛЬНЫЕ ПРОГРАММЫ МАГИС",
+    "rows": 38
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "tuition\\kstukb__PREREQFORAPPLICMASTERSDEGREE.txt",
+    "domain": "tuition",
+    "type": "xlsx",
+    "sheet": "PREREQFORAPPLICMASTERSDEGREE",
+    "rows": 35
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "timeline\\kstukb__Хронология_магистратура.txt",
+    "domain": "timeline",
+    "type": "xlsx",
+    "sheet": "Хронология магистратура",
+    "rows": 7
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "programs\\kstukb__ОБРАЗОВАТЕЛЬНЫЕ_ПРОГРАММЫ_ДОКТО.txt",
+    "domain": "programs",
+    "type": "xlsx",
+    "sheet": "ОБРАЗОВАТЕЛЬНЫЕ ПРОГРАММЫ ДОКТО",
+    "rows": 21
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "programs\\kstukb__PREREQUISITESDOCTORALPROGRAMS.txt",
+    "domain": "programs",
+    "type": "xlsx",
+    "sheet": "PREREQUISITESDOCTORALPROGRAMS",
+    "rows": 50
+  },
+  {
+    "source_file": "kstukb.xlsx",
+    "output_file": "timeline\\kstukb__календарь_докторантура.txt",
+    "domain": "timeline",
+    "type": "xlsx",
+    "sheet": "календарь докторантура",
+    "rows": 9
+  },
+  {
+    "source_file": "Вопросы и ответы по проекту Серпін 2050.docx",
+    "output_file": "programs\\Вопросы_и_ответы_по_проекту_Серпін_2050.txt",
+    "domain": "programs",
+    "type": "docx",
+    "paragraphs": 15,
+    "tables": 0
+  },
+  {
+    "source_file": "Информация по заселению в общежития.docx",
+    "output_file": "university_info\\Информация_по_заселению_в_общежития.txt",
+    "domain": "university_info",
+    "type": "docx",
+    "paragraphs": 7,
+    "tables": 0
+  },
+  {
+    "source_file": "Контакты центра Серпін 2050.docx",
+    "output_file": "contacts\\Контакты_центра_Серпін_2050.txt",
+    "domain": "contacts",
+    "type": "docx",
+    "paragraphs": 9,
+    "tables": 0
+  },
+  {
+    "source_file": "Об утверждении Правил распределения мест в общежитиях организаций высшего и.docx",
+    "output_file": "housing\\Об_утверждении_Правил_распределения_мест_в_общежитиях_организаций_высшего_и.txt",
+    "domain": "housing",
+    "type": "docx",
+    "paragraphs": 77,
+    "tables": 0
+  },
+  {
+    "source_file": "Пакет документов для иностранных граждан для зачисления в число студентов КарТУ.docx",
+    "output_file": "documents\\Пакет_документов_для_иностранных_граждан_для_зачисления_в_число_студентов_КарТУ.txt",
+    "domain": "documents",
+    "type": "docx",
+    "paragraphs": 11,
+    "tables": 0
+  },
+  {
+    "source_file": "Перечень документов для военнослужащих с 2022 года.docx",
+    "output_file": "documents\\Перечень_документов_для_военнослужащих_с_2022_года.txt",
+    "domain": "documents",
+    "type": "docx",
+    "paragraphs": 10,
+    "tables": 0
+  },
+  {
+    "source_file": "Перечень документов для заселения в общежития.docx",
+    "output_file": "documents\\Перечень_документов_для_заселения_в_общежития.txt",
+    "domain": "documents",
+    "type": "docx",
+    "paragraphs": 1,
+    "tables": 0
+  },
+  {
+    "source_file": "Перечень документов для поступления в докторантуру.docx",
+    "output_file": "documents\\Перечень_документов_для_поступления_в_докторантуру.txt",
+    "domain": "documents",
+    "type": "docx",
+    "paragraphs": 18,
+    "tables": 0
+  },
+  {
+    "source_file": "Перечень документов для поступления в магистратуру.docx",
+    "output_file": "documents\\Перечень_документов_для_поступления_в_магистратуру.txt",
+    "domain": "documents",
+    "type": "docx",
+    "paragraphs": 15,
+    "tables": 0
+  },
+  {
+    "source_file": "Перечень документов для поступления на Второе высшее и очное сокращенное с применением ДОТ КарТУ.docx",
+    "output_file": "documents\\Перечень_документов_для_поступления_на_Второе_высшее_и_очное_сокращенное_с_применением_ДОТ_КарТУ.txt",
+    "domain": "documents",
+    "type": "docx",
+    "paragraphs": 7,
+    "tables": 0
+  },
+  {
+    "source_file": "Перечень документов на бакалавриат.docx",
+    "output_file": "documents\\Перечень_документов_на_бакалавриат.txt",
+    "domain": "documents",
+    "type": "docx",
+    "paragraphs": 11,
+    "tables": 0
+  },
+  {
+    "source_file": "Положение о предоставлении льгот по оплате за обучение по образовательным программам высшего и послевузовского образования НАО.docx",
+    "output_file": "benefits\\Положение_о_предоставлении_льгот_по_оплате_за_обучение_по_образовательным_программам_высшего_и_послевузовского_образования_НАО.txt",
+    "domain": "benefits",
+    "type": "docx",
+    "paragraphs": 58,
+    "tables": 0
+  },
+  {
+    "source_file": "ПРАВИЛА ПРИЕМА НА ОБУЧЕНИЕ в НАО.docx",
+    "output_file": "university_info\\ПРАВИЛА_ПРИЕМА_НА_ОБУЧЕНИЕ_в_НАО.txt",
+    "domain": "university_info",
+    "type": "docx",
+    "paragraphs": 143,
+    "tables": 0
+  },
+  {
+    "source_file": "Приложение 1 к Правилам приема на обучение.docx",
+    "output_file": "programs\\Приложение_1_к_Правилам_приема_на_обучение.txt",
+    "domain": "programs",
+    "type": "docx",
+    "paragraphs": 1,
+    "tables": 0
+  },
+  {
+    "source_file": "Приложение 1 к Правилам распределения мест в общежитиях организаций высшего и.docx",
+    "output_file": "documents\\Приложение_1_к_Правилам_распределения_мест_в_общежитиях_организаций_высшего_и.txt",
+    "domain": "documents",
+    "type": "docx",
+    "paragraphs": 1,
+    "tables": 0
+  },
+  {
+    "source_file": "Приложение 2 к Правилам приема на обучение.docx",
+    "output_file": "scores\\Приложение_2_к_Правилам_приема_на_обучение.txt",
+    "domain": "scores",
+    "type": "docx",
+    "paragraphs": 7,
+    "tables": 0
+  },
+  {
+    "source_file": "Приложение 3 к Правилам приема на обучение.docx",
+    "output_file": "master\\Приложение_3_к_Правилам_приема_на_обучение.txt",
+    "domain": "master",
+    "type": "docx",
+    "paragraphs": 8,
+    "tables": 0
+  },
+  {
+    "source_file": "Приложение 3 к Правилам распределения мест в общежитиях организаций высшего и.docx",
+    "output_file": "documents\\Приложение_3_к_Правилам_распределения_мест_в_общежитиях_организаций_высшего_и.txt",
+    "domain": "documents",
+    "type": "docx",
+    "paragraphs": 1,
+    "tables": 0
+  },
+  {
+    "source_file": "Приложение 4 к Правилам распределения мест в общежитиях организаций высшего и.docx",
+    "output_file": "housing\\Приложение_4_к_Правилам_распределения_мест_в_общежитиях_организаций_высшего_и.txt",
+    "domain": "housing",
+    "type": "docx",
+    "paragraphs": 1,
+    "tables": 0
+  },
+  {
+    "source_file": "Приложение 5 к Правилам приема на обучение.docx",
+    "output_file": "scores\\Приложение_5_к_Правилам_приема_на_обучение.txt",
+    "domain": "scores",
+    "type": "docx",
+    "paragraphs": 11,
+    "tables": 0
+  },
+  {
+    "source_file": "Приложение 5 к Правилам распределения мест в общежитиях организаций высшего и.docx",
+    "output_file": "housing\\Приложение_5_к_Правилам_распределения_мест_в_общежитиях_организаций_высшего_и.txt",
+    "domain": "housing",
+    "type": "docx",
+    "paragraphs": 1,
+    "tables": 0
+  },
+  {
+    "source_file": "Приложение 6 к Правилам приема на обучение.docx",
+    "output_file": "scores\\Приложение_6_к_Правилам_приема_на_обучение.txt",
+    "domain": "scores",
+    "type": "docx",
+    "paragraphs": 5,
+    "tables": 0
+  },
+  {
+    "source_file": "Приложение 7 к Правилам приема на обучение.docx",
+    "output_file": "programs\\Приложение_7_к_Правилам_приема_на_обучение.txt",
+    "domain": "programs",
+    "type": "docx",
+    "paragraphs": 6,
+    "tables": 0
+  },
+  {
+    "source_file": "Приложение Шкала перевода баллов международного сертификата.docx",
+    "output_file": "master\\Приложение_Шкала_перевода_баллов_международного_сертификата.txt",
+    "domain": "master",
+    "type": "docx",
+    "paragraphs": 18,
+    "tables": 0
+  },
+  {
+    "source_file": "Реквизиты банка для оплаты проживания в общежитиях.docx",
+    "output_file": "housing\\Реквизиты_банка_для_оплаты_проживания_в_общежитиях.txt",
+    "domain": "housing",
+    "type": "docx",
+    "paragraphs": 5,
+    "tables": 0
+  }
+]

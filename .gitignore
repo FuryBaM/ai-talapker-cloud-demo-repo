@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+!.env.render.example
+!.env.free-cloud.example
+
+# secrets
+*token*
+*secret*
+*.key
+*.pem
+
+# runtime data
+backend/storage/**/*.sqlite
+backend/storage/**/*.db
+backend/storage/logs/
+backend/storage/tmp/
+backend/models/*
+!backend/models/.gitkeep
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

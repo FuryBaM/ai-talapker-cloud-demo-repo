@@ -1,0 +1,49 @@
+{
+  "presence": {
+    "source:контакты_центра_серпін_2050:admin:ba308b18-5a2f-4e4d-a773-8c022fc35b17": {
+      "username": "admin",
+      "role": "main_admin",
+      "client_id": "ba308b18-5a2f-4e4d-a773-8c022fc35b17",
+      "resource_key": "source:контакты_центра_серпін_2050",
+      "resource_type": "source",
+      "resource_id": "контакты_центра_серпін_2050",
+      "started_at": 1777837697,
+      "updated_at": 1777837800,
+      "expires_at": 1777837845
+    },
+    "source:вопросы_и_ответы_по_проекту_серпін_2050:admin:ba308b18-5a2f-4e4d-a773-8c022fc35b17": {
+      "username": "admin",
+      "role": "main_admin",
+      "client_id": "ba308b18-5a2f-4e4d-a773-8c022fc35b17",
+      "resource_key": "source:вопросы_и_ответы_по_проекту_серпін_2050",
+      "resource_type": "source",
+      "resource_id": "вопросы_и_ответы_по_проекту_серпін_2050",
+      "started_at": 1777837744,
+      "updated_at": 1777837803,
+      "expires_at": 1777837848
+    },
+    "source:информация_по_заселению_в_общежития:admin:ba308b18-5a2f-4e4d-a773-8c022fc35b17": {
+      "username": "admin",
+      "role": "main_admin",
+      "client_id": "ba308b18-5a2f-4e4d-a773-8c022fc35b17",
+      "resource_key": "source:информация_по_заселению_в_общежития",
+      "resource_type": "source",
+      "resource_id": "информация_по_заселению_в_общежития",
+      "started_at": 1777837749,
+      "updated_at": 1777837802,
+      "expires_at": 1777837847
+    },
+    "source:об_утверждении_правил_распределения_мест_в_общежитиях_организаций_высшего_и:admin:ba308b18-5a2f-4e4d-a773-8c022fc35b17": {
+      "username": "admin",
+      "role": "main_admin",
+      "client_id": "ba308b18-5a2f-4e4d-a773-8c022fc35b17",
+      "resource_key": "source:об_утверждении_правил_распределения_мест_в_общежитиях_организаций_высшего_и",
+      "resource_type": "source",
+      "resource_id": "об_утверждении_правил_распределения_мест_в_общежитиях_организаций_высшего_и",
+      "started_at": 1777837783,
+      "updated_at": 1777837798,
+      "expires_at": 1777837843
+    }
+  },
+  "locks": {}
+}

@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.env
+.env.*
+!.env.render.example
+!.env.free-cloud.example
+models/*
+!models/.gitkeep
+storage/**/*.sqlite
+storage/**/*.db
+storage/logs/
+storage/tmp/

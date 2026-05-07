@@ -1,0 +1,41 @@
+META_TITLE: kstukb
+META_SOURCE_FILE: kstukb.xlsx
+META_DOMAIN: tuition
+META_SHEET: PREREQFORAPPLICMASTERSDEGREE
+
+TABLE_1:
+ROW: Перечень пререквизитов для поступающих в магистратуру научно-педагогического и профильного направлений на 2026-2027 учебный год.
+ROW: Источник: https://www.kstu.kz/wp-content/uploads/2022/07/Prerekvizity-magistratury-na-206-2027-uchebnyj-god.pdf
+ROW: № | Код и программа | Дисциплины | Кредиты
+ROW: 1 | 7M04104 – Industrial Economics | Economic Theory; Fundamentals of Economics and Entrepreneurship | 5; 5
+ROW: 2 | 7M06101 – Information Systems | Algorithms and Data Structures; Databases | 5; 5
+ROW: 3 | 7M06102 – Computer Engineering and Software | Algorithms and Data Structures; Databases | 5; 5
+ROW: 4 | 7M06103 – Machine Learning and Data Analysis | Algorithms and Data Structures; Databases | 5; 5
+ROW: 5 | 7M06104 – Blockchain Technologies | Algorithms and Data Structures; Databases | 4; 5
+ROW: 6 | 7M06105 – Artificial Intelligence | Algorithms and Data Structures; Databases | 5; 5
+ROW: 7 | 7M07101 – Automation and Control | Physics; ICT; Electronics / Electrical Engineering | 5; 5; 5
+ROW: 8 | 7M07102 – Materials Science and Technology | Design of technological processes; Engineering materials | 5; 5
+ROW: 9 | 7M07103 – Mechanical Engineering | Mathematics; Machine Graphics | 5; 5
+ROW: 10 | 7M07104 – Transport Equipment and Technology | Transport эксплуатация; Energy installations | 5; 8
+ROW: 11 | 7M07105 / 7M07112 – Instrument Engineering | Measurement Technologies; Microprocessor circuitry | 5; 5
+ROW: 12 | 7M07106 – Heat Power Engineering | Mathematics; Physics; Electrical Engineering | 5; 5; 5
+ROW: 13 | 7M07107 – Electric Power Engineering | Mathematics; Physics; Electrical Engineering | 5; 5; 5
+ROW: 14 | 7M07108 – Chemical Technology of Organic Substances | Inorganic Chemistry; Chemical Technology | 6; 5
+ROW: 15 | 7M07109 – Technological Machines and Equipment | Mathematics; Machine Graphics | 5; 5
+ROW: 16 | 7M07110 – Radio-electronic Systems | Physics; ICT; Mathematics | 5; 5; 5
+ROW: 17 | 7M07111 – Thermal Systems Engineering | Mathematics; Physics; Electrical Engineering | 5; 5; 5
+ROW: 18 | 7M07201 – Geophysical Methods of Exploration | Geology of Kazakhstan; Mineral Deposits; Historical Geology | 5; 5; 5
+ROW: 19 | 7M07202 – Geology and Exploration | Geology of Kazakhstan; Mineral Deposits; Historical Geology | 5; 5
+ROW: 20 | 7M07203 – Mining | Rock destruction; Rock physics; Mining basics | 5; 5; 5
+ROW: 21 | 7M07204 – Metallurgy | General metallurgy; Metallurgical processes | 5; 5
+ROW: 22 | 7M07205 – Mine Surveying | Geodesy; Mine surveying; Automation | 5; 5; 5
+ROW: 23 | 7M07206 – Enrichment Processing | Mineral processing; Flotation methods | 5; 6
+ROW: 24 | 7M07207 – Innovations in Metallurgy | Metallurgy; Scientific research basics | 5; 5
+ROW: 25 | 7M07301 – Geodesy | Geodesy; Cartography; GNSS Monitoring | 5; 5; 5
+ROW: 26 | 7M07302 – Civil Engineering | Construction technology; Foundations; Architecture | 5; 5; 5
+ROW: 27 | 7M07303 – Building Materials and Structures | Materials; Concrete technology; Research methods | 5; 5; 5
+ROW: 28 | 7M07305 – Remote Sensing | Geodesy; Land monitoring; Cadastre | 5; 5; 5
+ROW: 29 | 7M07501 – Standardization and Certification | Metrology; Qualimetry | 5
+ROW: 30 | 7M11201 – Life Safety and Environmental Protection | Life safety; Occupational safety; Industrial sanitation | 5; 5; 5
+ROW: 31 | 7M11301 – Transport Organization | Freight operations; Railway management; Transport design | 5; 5; 5
+ROW: 32 | 7M11302 – Logistics and Supply Chain Management | Transport logistics; Supply chain management | 6; 7

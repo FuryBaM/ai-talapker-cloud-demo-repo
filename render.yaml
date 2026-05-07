@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: ai-talapker-backend
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: demo
+      - key: APP_CONFIG_FILE
+        value: configs/app.cloud.yaml
+      - key: LLM_PROVIDER
+        value: openrouter
+      - key: EMBEDDING_PROVIDER
+        value: openrouter
+      - key: OPENROUTER_CHAT_MODEL
+        value: openrouter/free
+      - key: OPENROUTER_EMBEDDING_MODEL
+        value: openai/text-embedding-3-small
+      - key: OPENROUTER_EMBEDDING_DIMENSIONS
+        value: "1536"
+      - key: QDRANT_COLLECTION
+        value: ai_talapker_openrouter_1536
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: ADMIN_JWT_SECRET
+        generateValue: true
+      - key: APP_CORS_ORIGINS
+        sync: false
+
+  - type: web
+    name: ai-talapker-frontend
+    runtime: docker
+    rootDir: frontend
+    plan: free
+    envVars:
+      - key: BACKEND_API_BASE
+        sync: false

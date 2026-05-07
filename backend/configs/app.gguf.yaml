@@ -1,0 +1,157 @@
+paths:
+  models_dir: models
+  storage_dir: storage
+  input_data_dir: input_data
+  data_dir: data
+  knowledge_registry_path: storage/knowledge_registry.json
+  knowledge_catalog_path: storage/knowledge_catalog.json
+  knowledge_entries_path: storage/knowledge_entries.jsonl
+  rag_documents_path: storage/rag_documents.jsonl
+  rag_chunks_path: storage/rag_chunks.jsonl
+
+models:
+  embedding:
+    # Torch-free embedding through llama-server. Requires a GGUF embedding model.
+    backend: gguf
+    # Conservative for small GPUs and llama-server embeddings. Raise after testing.
+    batch_size: 1
+    max_seq_length: 512
+    gguf:
+      path: models/Qwen3-Embedding-0.6B-Q8_0.gguf
+      device: cuda
+      # 512 with auto parallelism caused KV-slot pressure during indexing.
+      n_ctx: 2048
+      n_gpu_layers: -1
+      main_gpu: 0
+      server:
+        parallel: 1
+        # Optional, if a given embedding GGUF needs explicit pooling.
+        # pooling: last
+
+  generation:
+    backend: gguf
+    gguf:
+      path: models/Qwen3.5-2B-Q4_K_M.gguf
+      device: cuda
+      n_ctx: 8192
+      n_gpu_layers: -1
+      main_gpu: 0
+      # Leave empty to use the chat template embedded in the GGUF file.
+      chat_format: ""
+      server:
+        parallel: 4
+        # Qwen3.5 otherwise writes its answer into reasoning_content and leaves content empty.
+        extra_args:
+          - --chat-template-kwargs
+          - '{"enable_thinking":false}'
+
+  guard:
+    # Disabled for first GGUF testing. Enable only when you have a separate guard GGUF.
+    enabled: false
+    backend: gguf
+    gguf:
+      path: models/Qwen3.5-2B-Q4_K_M.gguf
+      device: cuda
+      n_ctx: 4096
+      n_gpu_layers: -1
+      main_gpu: 0
+      chat_format: ""
+
+runtime:
+  # python = use llama-cpp-python directly.
+  # llama_server = run external llama.cpp server; no llama-cpp-python package required.
+  gguf_runtime: llama_server
+  device: auto
+  embedding_device: cuda
+  load_4bit: false
+  gguf_verbose: false
+  llama_server:
+    auto_setup: true
+    prefer_cuda: true
+    # Explicit device: cuda should fail loudly instead of silently using CPU.
+    fallback_cpu: false
+    # Do not reuse stale manual llama-server processes with wrong -c/ctx.
+    reuse_existing: false
+    startup_timeout_seconds: 240
+    repo_url: https://github.com/ggml-org/llama.cpp.git
+    git_ref: master
+    runtime_dir: runtime/llama.cpp
+    build_dir: runtime/llama.cpp/build
+    executable_windows: runtime/llama.cpp/build/bin/Release/llama-server.exe
+    executable_linux: runtime/llama.cpp/build/bin/llama-server
+    log_dir: storage/logs
+    # Default ports: generation=8001, embedding=8002, guard=8003.
+    # CUDA on Windows usually needs Ninja to avoid Visual Studio CUDA toolset issues.
+    # Install with: pip install ninja
+    cmake_generator_cuda: Ninja
+    # CPU fallback intentionally uses CMake default generator.
+    cmake_generator_cpu: ""
+
+rag:
+  token_limit: 512
+  target_tokens: 320
+  overlap_tokens: 64
+  sim_threshold: 0.8
+  max_context_chunks: 5
+  lookup_max_iterations: 4
+
+rebuild:
+  registry_bootstrap: true
+  preserve_disabled_sources: true
+
+retrieval:
+  top_k: 5
+  default_domains: []
+  default_schemas: []
+
+generation:
+  max_new_tokens: 640
+
+answer_filter:
+  mode: balanced
+  min_supported_terms: 1
+  generic_overlap_threshold: 0.18
+  allow_partial_answers: true
+
+qdrant:
+  path: storage/qdrant
+  collection: university_knowledge
+
+redis:
+  url: redis://127.0.0.1:6379/0
+  session_ttl: 86400
+
+web_search:
+  enabled_by_default: false
+  whitelist:
+    - kstu.kz
+    - www.kstu.kz
+  max_results: 3
+
+admin:
+  # Create real users with: python manage.py create-admin --username <name> --role main_admin
+  # Set ADMIN_JWT_SECRET in .env.local for stable sessions and API keys.
+  username: ""
+  password: ""
+  jwt_secret: ""
+  allow_config_bootstrap: false
+  jwt_ttl_seconds: 43200
+
+prompts:
+  answer_not_found: Информации в базе недостаточно для ответа на этот вопрос.
+  system_prompt: >-
+    You are an AI assistant for Karaganda Technical University named after
+    Abylkas Saginov. The university is located in Karaganda, Kazakhstan. You
+    help applicants and students with university-related questions. Answer
+    clearly, completely, and naturally. When the context contains a list,
+    enumerate the items in a readable way and add a short introductory
+    sentence. Prefer a fuller answer over a one-line reply, but do not invent
+    facts. Use a neutral tone and refer to the institution as "the university",
+    not "your university" or "our university". Do not add praise, marketing
+    language, or general statements that are not explicitly supported by the
+    context. Answer strictly based on the provided context; if the context is
+    irrelevant or missing, reply exactly: There is not enough information in
+    the database to answer this question. Never include angle-bracket
+    placeholders like <...> in the final answer; replace any such placeholder
+    with the actual answer from context, or, if missing, with a short helpful
+    hint.

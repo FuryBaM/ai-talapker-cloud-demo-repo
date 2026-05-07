@@ -1,0 +1,5 @@
+services:
+  - type: web
+    name: ai-talapker-frontend
+    runtime: docker
+    plan: free

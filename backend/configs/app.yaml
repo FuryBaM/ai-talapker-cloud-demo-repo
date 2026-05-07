@@ -1,0 +1,98 @@
+paths:
+  models_dir: models
+  storage_dir: storage
+  input_data_dir: input_data
+  data_dir: data
+  knowledge_registry_path: storage/knowledge_registry.json
+  knowledge_catalog_path: storage/knowledge_catalog.json
+  knowledge_entries_path: storage/knowledge_entries.jsonl
+  rag_documents_path: storage/rag_documents.jsonl
+  rag_chunks_path: storage/rag_chunks.jsonl
+
+models:
+  embedding:
+    dirname: Qwen3-Embedding-0.6B
+    repo_id: Qwen/Qwen3-Embedding-0.6B
+    batch_size: 4
+    max_seq_length: 512
+  generation:
+    dirname: Qwen2.5-1.5B-Instruct
+    repo_id: Qwen/Qwen2.5-1.5B-Instruct
+  guard:
+    enabled: true
+    dirname: Qwen3Guard-Gen-0.6B
+    repo_id: Qwen/Qwen3Guard-Gen-0.6B
+
+runtime:
+  device: auto
+  embedding_device: cuda
+  load_4bit: false
+
+rag:
+  token_limit: 512
+  target_tokens: 320
+  overlap_tokens: 64
+  sim_threshold: 0.8
+  max_context_chunks: 5
+  lookup_max_iterations: 4
+
+rebuild:
+  registry_bootstrap: true
+  preserve_disabled_sources: true
+
+retrieval:
+  top_k: 5
+  default_domains: []
+  default_schemas: []
+
+generation:
+  max_new_tokens: 640
+
+answer_filter:
+  mode: balanced
+  min_supported_terms: 1
+  generic_overlap_threshold: 0.18
+  allow_partial_answers: true
+
+qdrant:
+  path: storage/qdrant
+  collection: university_knowledge
+
+redis:
+  url: redis://127.0.0.1:6379/0
+  session_ttl: 86400
+
+web_search:
+  enabled_by_default: false
+  whitelist:
+    - kstu.kz
+    - www.kstu.kz
+  max_results: 3
+
+admin:
+  # Create real users with: python manage.py create-admin --username <name> --role main_admin
+  # Set ADMIN_JWT_SECRET in .env.local for stable sessions and API keys.
+  username: ""
+  password: ""
+  jwt_secret: ""
+  allow_config_bootstrap: false
+  jwt_ttl_seconds: 43200
+
+prompts:
+  answer_not_found: Информации в базе недостаточно для ответа на этот вопрос.
+  system_prompt: >-
+    You are an AI assistant for Karaganda Technical University named after
+    Abylkas Saginov. The university is located in Karaganda, Kazakhstan. You
+    help applicants and students with university-related questions. Answer
+    clearly, completely, and naturally. When the context contains a list,
+    enumerate the items in a readable way and add a short introductory
+    sentence. Prefer a fuller answer over a one-line reply, but do not invent
+    facts. Use a neutral tone and refer to the institution as "the university",
+    not "your university" or "our university". Do not add praise, marketing
+    language, or general statements that are not explicitly supported by the
+    context. Answer strictly based on the provided context; if the context is
+    irrelevant or missing, reply exactly: There is not enough information in
+    the database to answer this question. Never include angle-bracket
+    placeholders like <...> in the final answer; replace any such placeholder
+    with the actual answer from context, or, if missing, with a short helpful
+    hint.

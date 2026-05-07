@@ -1,0 +1,12 @@
+META_TITLE: kstukb
+META_SOURCE_FILE: kstukb.xlsx
+META_DOMAIN: housing
+META_SHEET: Прейскурант-общежитие
+
+TABLE_1:
+ROW: Прейскурант стоимости на оказание платных услуг.
+ROW: Источник: https://www.kstu.kz/wp-content/uploads/2025/08/Prilozhenie-Prejskursant-stoimosti-na-okazanie-platnyh-uslug-k-sluzhebnaya-zapiska-059-25_DMP-ot-11.08.2025-_Proshu-razreshitv1-1.pdf
+ROW: Наименование услуги | Единица измерения | Цена, тенге
+ROW: Стоимость проживания в жилом комплексе «Студенттер үйі» | месяц | 11500
+ROW: Стоимость проживания в общежитии № 3 | месяц | 11500
+ROW: Стоимость проживания в жилом комплексе «Армандастар Ордасы» | месяц | 18500

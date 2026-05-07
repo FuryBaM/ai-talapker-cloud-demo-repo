@@ -1,0 +1,43 @@
+experiment:
+  name: kaggle-large-model-check
+
+paths:
+  input_data_dir: input_data
+  data_dir: data
+  storage_dir: storage/kaggle
+
+embedding:
+  source: intfloat/multilingual-e5-small
+  device: cuda
+  batch_size: 64
+
+generation:
+  source: Qwen/Qwen2.5-7B-Instruct
+  tokenizer_source: Qwen/Qwen2.5-7B-Instruct
+  device_map: auto
+  dtype: float16
+  load_in_4bit: true
+  max_new_tokens: 768
+  repetition_penalty: 1.1
+
+rag:
+  token_limit: 512
+  target_tokens: 320
+  overlap_tokens: 64
+  top_k: 5
+  threshold: 0.8
+  qdrant_path: storage/kaggle/qdrant
+  collection: kaggle_large_model_check
+
+runtime:
+  lang: ru
+  rebuild_data: false
+  rebuild_index: true
+  show_context: true
+  interactive: true
+
+prompts:
+  system_prompt: >-
+    You are an AI assistant for Karaganda Technical University named after
+    Abylkas Saginov in Karaganda, Kazakhstan. Answer only from the supplied
+    context. If the context is insufficient, say so directly and briefly.

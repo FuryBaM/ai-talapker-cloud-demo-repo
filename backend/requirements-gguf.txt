@@ -1,0 +1,29 @@
+# Minimal torch-free runtime for GGUF mode through external llama-server.
+# No torch, transformers, sentence-transformers or llama-cpp-python are required here.
+# The application starts/uses runtime/llama.cpp/build/.../llama-server separately.
+anyio==4.8.0
+argon2-cffi==23.1.0
+blingfire==0.1.8
+click==8.2.1
+cryptography==44.0.3
+fastapi==0.116.1
+httpx==0.26.0
+Jinja2==3.1.5
+langgraph==0.2.67
+numpy==2.3.2
+pydantic==2.12.5
+python-dotenv==1.1.1
+python-multipart==0.0.20
+PyYAML==6.0.2
+qdrant-client==1.12.1
+redis==5.2.1
+requests==2.32.5
+starlette==0.47.3
+typing_extensions==4.15.0
+uvicorn==0.35.0
+
+# Used by auto_setup to build llama.cpp without CUDA MSBuild integration.
+ninja
+pillow==11.3.0
+pytesseract==0.3.13
+PyMuPDF==1.24.14

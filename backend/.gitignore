@@ -1,0 +1,87 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+.env/
+.venv*/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+.coverage
+.tox/
+.nox/
+.pytest_cache/
+htmlcov/
+.cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Pytorch
+*.pt
+*.pth
+*.onnx
+*.ckpt
+
+# Logs
+*.log
+logs/
+uvicorn.log
+
+# FastAPI / Uvicorn run artifacts
+*.db
+*.sqlite3
+*.sqlite
+*.pid
+
+# IDEs / editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+.env.local
+
+*.zip
+*.rar
+
+*/dist/
+*/build/
+
+*.zip
+*.tar.gz
+
+*/runtime/
+
+*.gguf
+models/*.gguf
+*.gguf
+runtime/llama.cpp/
+runtime/**/*.exe
+runtime/**/*.dll

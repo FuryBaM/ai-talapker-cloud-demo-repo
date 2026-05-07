@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Talapker — Ассистент по поступлению</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/site.css?v=newchatfix1-ru39">
+</head>
+<body class="chat-body">
+
+<!-- ══════════ SETTINGS POPUP ══════════ -->
+<div id="settingsOverlay" class="sp-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="spTitle">
+  <div class="sp" id="settingsPopup">
+    <div class="sp__head">
+      <div class="sp__head-left">
+        <div class="sp__icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </div>
+        <span id="spTitle" class="sp__title">Настройки</span>
+      </div>
+      <button class="sp__close" id="settingsClose" type="button" aria-label="Закрыть">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="sp__body">
+      <!-- Lang -->
+      <div class="sp__section">
+        <div class="sp__label">Язык ответов</div>
+        <div class="sp__langs" id="spLangs">
+          <button class="sp__lang active" data-lang="ru" type="button">🇷🇺<span>Русский</span></button>
+          <button class="sp__lang" data-lang="kk" type="button">🇰🇿<span>Қазақша</span></button>
+          <button class="sp__lang" data-lang="en" type="button">🇬🇧<span>English</span></button>
+        </div>
+      </div>
+
+      <!-- Toggles -->
+      <div class="sp__section">
+        <div class="sp__row">
+          <div class="sp__row-info">
+            <div class="sp__row-label">Использовать ИИ-модель</div>
+            <div class="sp__row-hint">Генеративный ответ через LLM</div>
+          </div>
+          <label class="swtch">
+            <input id="use" type="checkbox" checked>
+            <span class="swtch__track"><span class="swtch__thumb"></span></span>
+          </label>
+        </div>
+        <div class="sp__row">
+          <div class="sp__row-info">
+            <div class="sp__row-label">Подсказки по диалогу</div>
+            <div class="sp__row-hint">Вопросы-подсказки после ответов</div>
+          </div>
+          <label class="swtch">
+            <input id="showSuggestionsToggle" type="checkbox" checked>
+            <span class="swtch__track"><span class="swtch__thumb"></span></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="sp__section sp__section--stats">
+        <div class="sp__stat">
+          <span class="sp__stat-label">Сессия</span>
+          <span class="sp__stat-val" id="sessionLabel">—</span>
+        </div>
+        <div class="sp__stat">
+          <span class="sp__stat-label">Сообщений</span>
+          <span class="sp__stat-val" id="messageCountLabel">0</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PAGE ══════════ -->
+<div class="page chat-page" id="chatPage">
+
+  <header class="appbar" aria-label="Верхняя панель">
+    <div class="appbar__brand">
+      <div class="appbar__mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 7h16M4 12h11M4 17h7"/>
+        </svg>
+      </div>
+      <div class="appbar__name">AI Talapker</div>
+    </div>
+    <button id="resetFromTop" class="appbar__action" type="button">Новый чат</button>
+  </header>
+
+  <main class="chat-main" aria-label="Чат AI Talapker">
+    <section id="welcomeView" class="welcome">
+      <div class="welcome__hero">
+        <div class="welcome__badge">
+          <span class="welcome__badge-dot"></span>
+          ИИ-ассистент онлайн
+        </div>
+        <h1 class="welcome__title">С чего начнём?</h1>
+        <p class="welcome__subtitle">Задайте вопрос о поступлении, документах, грантах, сроках или образовательных программах.</p>
+      </div>
+
+      <div class="composer composer--welcome">
+        <div class="composer__row">
+          <textarea id="welcomeInput" rows="1" placeholder="Спросите о поступлении в КарТУ…"></textarea>
+          <button id="welcomeTipsButton" class="composer-tool" type="button" title="Показать подсказки" aria-label="Показать подсказки">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2"/><path d="M18.36 5.64l-1.42 1.42"/><path d="M21 12h-2"/><path d="M5 12H3"/><path d="M7.06 7.06 5.64 5.64"/><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8 14a5 5 0 1 1 8 0c-.7.7-1 1.32-1 2H9c0-.68-.3-1.3-1-2Z"/></svg>
+          </button>
+          <button id="welcomeSend" class="send" type="button" aria-label="Отправить">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="welcomeSuggestions" class="welcome__suggestions"></div>
+    </section>
+
+    <section id="chatView" class="chat hidden">
+      <div class="chat__header">
+        <div class="chat__heading">
+          <div class="chat__titleRow">
+            <span class="chat__statusDot" aria-hidden="true"></span>
+            <div class="chat__title">AI Talapker</div>
+          </div>
+          <div id="chatMeta" class="chat__meta">Диалог с памятью по сессии</div>
+        </div>
+        <div class="chat__actions">
+          <button id="copyChat" class="icon-btn" type="button" title="Копировать переписку" aria-label="Копировать переписку">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button id="resetChat" class="icon-btn icon-btn--labeled" type="button">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.9"/></svg>
+            Новый чат
+          </button>
+        </div>
+      </div>
+
+      <div id="chatList" class="chat__body">
+        <div id="chatEmpty" class="chat__empty">
+          <div class="chat__empty-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div class="chat__empty-title">Диалог готов</div>
+          <div class="chat__empty-text">Введите вопрос или откройте подсказки рядом с кнопкой отправки.</div>
+        </div>
+      </div>
+
+      <div id="suggestionsWrap" class="chat__suggestionsWrap">
+        <div class="chat__suggestionsBar">
+          <span class="chat__suggestionsLabel">Возможные вопросы</span>
+          <div class="chat__suggestionsActions">
+            <button id="refreshSuggestions" class="micro-btn" type="button" title="Обновить подсказки" aria-label="Обновить подсказки">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            </button>
+            <button id="toggleSuggestions" class="micro-btn" type="button" title="Скрыть подсказки" aria-label="Скрыть подсказки">
+              <svg id="toggleIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+        </div>
+        <div id="chatSuggestions" class="chat__suggestions"></div>
+      </div>
+
+      <div class="chat__composer">
+        <div class="chat__composerWrap">
+          <div id="replyPreview" class="reply-preview hidden">
+            <div class="reply-preview__bar" aria-hidden="true"></div>
+            <div class="reply-preview__body">
+              <div id="replyLabel" class="reply-preview__label"></div>
+              <div id="replyText" class="reply-preview__text"></div>
+            </div>
+            <button id="clearReply" class="reply-preview__close" type="button" title="Убрать выбранное сообщение" aria-label="Убрать выбранное сообщение">×</button>
+          </div>
+          <div class="chat__composerBox">
+            <textarea id="chatInput" rows="1" placeholder="Спросите о поступлении в КарТУ…"></textarea>
+            <button id="showSuggestionsFromComposer" class="composer-tool" type="button" title="Показать подсказки" aria-label="Показать подсказки">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2"/><path d="M18.36 5.64l-1.42 1.42"/><path d="M21 12h-2"/><path d="M5 12H3"/><path d="M7.06 7.06 5.64 5.64"/><path d="M9 18h6"/><path d="M10 22h4"/><path d="M8 14a5 5 0 1 1 8 0c-.7.7-1 1.32-1 2H9c0-.68-.3-1.3-1-2Z"/></svg>
+            </button>
+            <button id="chatSend" class="send" type="button" aria-label="Отправить">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+          <div class="chat__composerMeta">
+            <span class="composer__hint">Enter — отправить, Shift+Enter — новая строка</span>
+            <span id="chatCharCount" class="chat__charCount">0</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <button id="openSettings" class="settings-fab" type="button" aria-label="Настройки" title="Настройки">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+
+  <div id="socialDock" class="social-dock">
+    <div class="social-dock__menu" aria-label="Социальные сети">
+      <a class="social-dock__item social-dock__item--ig" href="https://www.instagram.com/talapker_saginov_university/" target="_blank" rel="noopener" title="Instagram" aria-label="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7Zm5 3.5A4.5 4.5 0 1 1 12 16a4.5 4.5 0 0 1 0-9Zm0 2A2.5 2.5 0 1 0 12 14a2.5 2.5 0 0 0 0-5Zm5.15-2.85a1.15 1.15 0 1 1-1.15 1.15 1.15 1.15 0 0 1 1.15-1.15Z"/></svg></a>
+      <a class="social-dock__item social-dock__item--tg" href="https://t.me/Talapker_Saginov_University?utm_source=ig&utm_medium=social&utm_content=link_in_bio" target="_blank" rel="noopener" title="Telegram" aria-label="Telegram"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.6 18.7 19.7c-.24 1.08-.88 1.35-1.78.84l-4.92-3.63-2.37 2.28c-.26.26-.48.48-.98.48l.35-5.01 9.13-8.25c.4-.35-.09-.55-.62-.2L6.23 13.3 1.36 11.78C.3 11.45.28 10.72 1.58 10.2L20.6 2.87c.88-.33 1.65.2 1.3 1.73Z"/></svg></a>
+    </div>
+    <button id="socialToggle" class="social-dock__toggle" type="button" aria-label="Открыть социальные сети" title="Социальные сети">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98"/><path d="m15.41 6.51-6.82 3.98"/></svg>
+    </button>
+  </div>
+</div>
+
+<script src="/config.js"></script>
+<script src="/static/js/chat.js?v=memory-v14"></script>
+</body>
+</html>

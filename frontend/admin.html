@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Админ-панель AI Talapker</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;family=Manrope:wght@400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="/static/css/site.css?v=training-arena-v1" rel="stylesheet"/>
+</head>
+<body>
+<div class="page admin-page admin-workbench">
+<header class="topbar admin-toolbar">
+<div class="brand">
+<div class="brand__kicker">AI Talapker</div>
+<div class="brand__title">Knowledge Workspace</div>
+<div class="brand__subtitle">Разметка источников, RAG-записи и индекс.</div>
+</div>
+<div class="topbar__actions">
+<admin-session-badge></admin-session-badge>
+<a class="btn" href="/index.html">К чату</a>
+<button class="btn" id="toolbarReloadBtn" type="button">Обновить</button>
+<button class="danger hidden" id="logoutBtn" type="button">Выйти</button>
+</div>
+</header>
+<section class="shell" id="loginView">
+<div class="login card">
+<h2>Вход администратора</h2>
+<div class="muted">JWT нужен для доступа к реестру, конструктору структуры, просмотру и операциям пересборки/отладки.</div>
+<input id="loginUsername" autocomplete="username" placeholder="Логин" value=""/>
+<input id="loginPassword" autocomplete="current-password" placeholder="Пароль" type="password" value=""/>
+<button class="btn btn--brand" id="loginBtn" type="button">Войти</button>
+<div class="muted" id="loginStatus"></div>
+</div>
+</section>
+<section class="shell hidden admin-shell" id="adminView">
+
+<admin-menu-bar class="admin-menu-bar" id="adminMenuBar" aria-label="Команды редактора">
+  <div class="admin-menu-group">
+    <button class="admin-menu-trigger" type="button">Документ</button>
+    <div class="admin-menu-dropdown">
+      <button type="button" data-menu-action="save-current"><span id="menuSaveCurrentLabel">Сохранить текущий объект</span><kbd>Ctrl+S</kbd></button>
+      <button type="button" data-menu-action="save-source"><span id="menuSaveSourceLabel">Сохранить весь источник</span><kbd>Ctrl+Shift+S</kbd></button>
+      <div class="admin-menu-separator"></div>
+      <button type="button" data-menu-action="rebuild-current"><span id="menuRebuildCurrentLabel">Пересобрать текущий объект</span><kbd>Ctrl+R</kbd></button>
+      <button type="button" data-menu-action="rebuild-all">Пересобрать всё<kbd>Ctrl+Shift+R</kbd></button>
+      <div class="admin-menu-separator"></div>
+      <button type="button" data-menu-action="upload-source">Загрузить источник</button>
+      <button type="button" data-menu-action="reload-registry">Обновить проводник</button>
+    </div>
+  </div>
+  <div class="admin-menu-group">
+    <button class="admin-menu-trigger" type="button">Правка</button>
+    <div class="admin-menu-dropdown">
+      <button type="button" data-menu-action="edit-block">Редактировать блок<kbd>E</kbd></button>
+      <button type="button" data-menu-action="split-cursor">Разрезать по курсору<kbd>S</kbd></button>
+      <button type="button" data-menu-action="split-auto">Разрезать автоматически</button>
+      <button type="button" data-menu-action="merge-selected">Объединить выбранные блоки<kbd>Ctrl+J</kbd></button>
+      <button type="button" data-menu-action="create-entry">Создать запись из выбранного<kbd>G</kbd></button>
+      <div class="admin-menu-separator"></div>
+      <button type="button" data-menu-action="clear-selection">Снять выбор<kbd>Esc</kbd></button>
+    </div>
+  </div>
+  <div class="admin-menu-group">
+    <button class="admin-menu-trigger" type="button">Разметка</button>
+    <div class="admin-menu-dropdown">
+      <button type="button" data-menu-action="mark-body">Статус: данные<kbd>D</kbd></button>
+      <button type="button" data-menu-action="mark-meta">Статус: мета<kbd>M</kbd></button>
+      <button type="button" data-menu-action="mark-ignore">Статус: игнор<kbd>I</kbd></button>
+      <button type="button" data-menu-action="mark-heading">Статус: глава<kbd>H</kbd></button>
+      <button type="button" data-menu-action="mark-draft">Статус: проверить<kbd>P</kbd></button>
+    </div>
+  </div>
+  <div class="admin-menu-group">
+    <button class="admin-menu-trigger" type="button">Вид</button>
+    <div class="admin-menu-dropdown">
+      <button type="button" data-menu-action="tab-viewer">Просмотр</button>
+      <button type="button" data-menu-action="tab-structure">Структура</button>
+      <button type="button" data-menu-action="tab-entries">Записи</button>
+      <button type="button" data-menu-action="tab-chunks">Чанки</button>
+      <button type="button" data-menu-action="tab-index">Индекс</button>
+      <button type="button" data-menu-action="tab-advanced">Дополнительно</button>
+      <button type="button" data-menu-action="tab-training">Датасеты / обучение</button>
+      <div class="admin-menu-separator"></div>
+      <button type="button" data-menu-action="toggle-bottom">Журнал сборки<kbd>Alt+3</kbd></button>
+    </div>
+  </div>
+  <div class="admin-menu-group">
+    <button class="admin-menu-trigger" type="button">Инструменты</button>
+    <div class="admin-menu-dropdown">
+      <button type="button" data-menu-action="analyze-source">Анализировать документ</button>
+      <button type="button" data-menu-action="normalize">Нормализовать</button>
+      <button type="button" data-menu-action="build-documents">Собрать документы</button>
+      <button type="button" data-menu-action="build-chunks">Собрать чанки</button>
+      <button type="button" data-menu-action="index">Индексировать</button>
+      <button type="button" data-menu-action="tab-training">Арена датасетов</button>
+    </div>
+  </div>
+  <div class="admin-menu-group">
+    <button class="admin-menu-trigger" type="button">Справка</button>
+    <div class="admin-menu-dropdown admin-menu-dropdown--right">
+      <button type="button" data-menu-action="show-shortcuts">Горячие клавиши</button>
+      <button type="button" data-menu-action="show-markup-help">Правила разметки</button>
+    </div>
+  </div>
+</admin-menu-bar>
+<div class="admin-layout">
+<nav class="admin-rail" aria-label="Разделы навигации">
+  <button class="admin-rail__item active" data-explorer-tab="sources" type="button" title="Источники"><span>ИС</span><small>Источники</small></button>
+  <button class="admin-rail__item" data-explorer-tab="domains" type="button" title="Домены"><span>ДМ</span><small>Домены</small></button>
+  <button class="admin-rail__item hidden" data-explorer-tab="schemas" type="button" title="Типы записей"><span>ТИ</span><small>Типы</small></button>
+</nav>
+<admin-source-explorer class="admin-pane admin-pane--left dock-panel" data-dock-panel="explorer" data-dock-title="Источники" id="explorerPane">
+<div class="pane-head">
+<div>
+<div class="pane-title">Источники</div>
+<div class="muted">Файлы, домены и типы записей</div>
+</div>
+</div>
+<div class="tabs tabs--compact explorer-local-tabs">
+<button class="tab active" data-explorer-tab="sources" type="button">Источники</button>
+<button class="tab" data-explorer-tab="domains" type="button">Домены</button>
+<button class="tab hidden" data-explorer-tab="schemas" type="button">Типы записей</button>
+</div>
+<div class="explorer-panel" data-explorer-panel="sources">
+<div class="card card--flat explorer-source-card">
+<div class="explorer-toolbar">
+<input id="sourceSearchInput" placeholder="Поиск по source_id или пути"/>
+<button class="btn" id="loadRegistryBtn" type="button">Обновить</button>
+<button class="btn" id="downloadSelectedSourceBtn" type="button" title="Скачать выбранный файл из проводника">Скачать</button>
+<button class="btn btn--brand" id="openUploadModalBtn" type="button">Загрузить</button>
+</div>
+<div class="source-list source-list--workspace" id="sourceList"></div>
+</div>
+</div>
+<div class="explorer-panel explorer-panel--catalog hidden" data-explorer-panel="domains">
+<div class="card card--flat catalog-card">
+<div class="catalog-head">
+<h3>Домены</h3>
+<span class="pill">смысловой слой</span>
+</div>
+<div class="source-list source-list--catalog" id="domainsList"></div>
+</div>
+</div>
+<div class="explorer-panel explorer-panel--catalog hidden no-schema-internal" data-explorer-panel="schemas">
+<div class="card card--flat catalog-card">
+<div class="catalog-head">
+<h3>Типы записей</h3>
+<span class="pill">структурный слой</span>
+</div>
+<div class="source-list source-list--catalog" id="schemasList"></div>
+</div>
+</div>
+</admin-source-explorer>
+<div class="dock-splitter dock-splitter--vertical" data-resize-pane="left" title="Изменить размер проводника"></div>
+<admin-workspace-router class="admin-pane admin-pane--center dock-panel" data-dock-panel="workspace" data-dock-title="Рабочая область" id="workspacePane">
+<admin-pipeline-actions>
+<div class="pane-head">
+<div>
+<div class="pane-title">Рабочая область</div>
+<div class="muted" id="sourceStatus">Выберите источник слева.</div>
+</div>
+</div>
+<section class="workspace-panel" data-workspace-panel="viewer">
+<div class="card card--flat workspace-card workspace-viewer-card">
+<div class="workspace-card__head workspace-card__head--tabs">
+<div aria-label="Режим просмотра" class="tabs tabs--compact viewer-tabs">
+<button class="tab active" data-viewer-tab="document" type="button">Документ</button>
+<button class="tab" data-viewer-tab="raw" type="button">Сырой JSON</button>
+</div>
+<span class="pill" id="viewerModePill">источник</span>
+</div>
+<div class="viewer-subpanel" data-viewer-panel="document">
+<div id="sourcePreview"></div>
+</div>
+<div class="viewer-subpanel viewer-subpanel--raw hidden" data-viewer-panel="raw">
+<pre class="json-wrap" id="rawPreview"></pre>
+</div>
+</div>
+</section>
+<section class="workspace-panel workspace-panel--structure hidden" data-workspace-panel="structure">
+<div class="card card--flat workspace-card pipeline-card">
+<div class="workspace-card__head pipeline-head">
+<div>
+<h3>Структура источника</h3>
+<div class="muted">Разметка источника: для текста — главы/абзацы/игнор, для таблиц — метаданные/заголовки/данные/футер/игнор.</div>
+</div>
+<div class="toolbar toolbar--compact">
+<button class="btn btn--brand" id="analyzeSourceBtn" type="button" title="Авторазметить: распознать блоки, заголовки, секции и возможные записи. Индекс не пересобирается.">Авторазметить</button>
+<button class="btn" id="saveStructureBtn" type="button">Сохранить извлечение</button>
+</div>
+</div>
+<div class="structure-workspace" id="sourceStructurePreview"></div>
+</div>
+</section>
+<section class="workspace-panel workspace-panel--chunks hidden" data-workspace-panel="chunks">
+<div class="card card--flat workspace-card pipeline-card">
+<div class="workspace-card__head pipeline-head">
+<div>
+<h3>Предпросмотр чанков</h3>
+<div class="muted">Предпросмотр текста, который будет эмбеддиться и попадать в payload Qdrant.</div>
+</div>
+<div class="toolbar toolbar--compact">
+<button class="btn" id="refreshChunksPreviewBtn" type="button">Обновить</button>
+<button class="btn btn--brand" id="indexSourceFromChunksBtn" type="button">Индексировать источник</button>
+</div>
+</div>
+<div class="chunks-preview-list" id="sourceChunksPreview"></div>
+</div>
+</section>
+<section class="workspace-panel workspace-panel--index hidden" data-workspace-panel="index">
+<div class="pipeline-index-grid">
+<div class="card card--flat workspace-card pipeline-card">
+<div class="workspace-card__head">
+<h3>Пайплайн индексации</h3>
+<span class="pill">источник → записи → чанки → qdrant</span>
+</div>
+<div class="pipeline-steps" id="sourcePipelinePreview"></div>
+</div>
+<div class="card card--flat workspace-card pipeline-card">
+<div class="workspace-card__head">
+<h3>Действия</h3>
+<span class="pill">RAG</span>
+</div>
+<div class="stack">
+<button class="btn btn--brand" data-pipeline-action="save-map" type="button">Сохранить правила извлечения</button>
+<button class="btn" data-pipeline-action="rebuild-source" type="button">Применить текущий источник в RAG</button>
+<button class="btn" data-pipeline-action="build-chunks" type="button">Собрать чанки</button>
+<button class="btn" data-pipeline-action="index" type="button">Индексировать векторы</button>
+</div>
+</div>
+</div>
+</section>
+<section class="workspace-panel workspace-panel--advanced hidden" data-workspace-panel="advanced">
+<div class="advanced-grid">
+<div class="card card--flat workspace-card">
+<div class="workspace-card__head">
+<h3>Дополнительные объекты</h3>
+<span class="pill">опционально</span>
+</div>
+<div class="inspector-note">Основной сценарий — разметить каждый источник, проверить записи/чанки и сохранить правила извлечения именно для этого файла или листа. Каждая таблица или лист хранит собственные правила извлечения.</div>
+<div class="advanced-object-grid">
+<button class="btn" id="openAdvancedDomainsBtn" type="button">Справочник доменов</button>
+<button class="btn hidden" id="openAdvancedSchemasBtn" type="button">Тип записи / схема</button>
+<button class="btn" id="openAdvancedEntryEditorBtn" type="button">Ручной редактор записи</button>
+<button class="btn" id="openAdvancedSavedEntriesBtn" type="button">Сохраненные записи</button>
+</div>
+</div>
+<admin-access-manager class="card card--flat workspace-card advanced-access-card"></admin-access-manager>
+<div class="card card--flat workspace-card">
+<div class="workspace-card__head">
+<h3>Модель извлечения</h3>
+<span class="pill">логическая модель</span>
+</div>
+<div class="pipeline-model-list">
+<div><strong>Разметка источника</strong><span>роли абзацев или зоны таблицы для конкретного файла</span></div>
+<div><strong>Правило извлечения</strong><span>как из этого источника строятся записи</span></div>
+<div><strong>Поля извлечения</strong><span>набор колонок, ячеек и текстовых блоков для текущего источника или листа</span></div>
+<div><strong>Чанки</strong><span>читаемый текст для эмбеддингов с payload metadata</span></div>
+</div>
+</div>
+</div>
+</section>
+</admin-pipeline-actions>
+<admin-entry-editor>
+<section class="workspace-panel hidden" data-workspace-panel="entry">
+<div class="workspace-stack" id="sourceEditor">
+<div class="card card--flat hidden" id="xlsxEditor">
+<div class="workspace-card__head">
+<h3>Маппинг Excel</h3>
+<span class="pill">редактор записи</span>
+</div>
+<div class="row xlsx-workspace-title-row">
+<input id="mappingTitle" placeholder="Название записи"/>
+</div>
+<div class="table-mapper-card table-mapper-card--workspace">
+<div class="table-mapper-head">
+<div>
+<h4>Таблица</h4>
+<div class="muted">Основная поверхность: просмотр таблицы, изменение ширины колонок, выбор ячеек, строк и столбцов. Настройки и действия — справа в инспекторе.</div>
+</div>
+</div>
+<div class="entry-table-preview" id="entryTablePreview"></div>
+</div>
+</div>
+<div class="card card--flat hidden" id="docEditor">
+<div class="workspace-card__head">
+<h3>Редактор Word / текста</h3>
+<span class="pill">редактор записи</span>
+</div>
+<input id="docTitle" placeholder="Название записи"/>
+<div class="hidden" id="paragraphPickerWrap">
+<div class="muted">Выберите абзацы, которые должны попасть в запись базы знаний.</div>
+<div class="paragraph-list" id="paragraphList"></div>
+</div>
+<textarea id="docEditedText" placeholder="Редактируемый текст записи"></textarea>
+<div class="toolbar">
+<button class="btn" id="buildDraftFromDocBtn" type="button">Собрать черновик из текста</button>
+</div>
+</div>
+<div class="card card--flat entry-draft-card" data-source-dropzone="true">
+<div class="workspace-card__head">
+<h3>Черновик записи</h3>
+<span class="pill">запись</span>
+</div>
+<div class="row">
+<input id="entryIdInput" placeholder="entry_id"/>
+<input id="entryTitleInput" placeholder="title"/>
+</div>
+<div class="row">
+<select id="entryClassSelect"></select>
+<select id="entrySchemaSelect"></select>
+</div>
+<div class="row">
+<select id="entryLevelSelect"></select>
+<select id="entryLangSelect"></select>
+</div>
+<input id="entrySourceIdInput" placeholder="source_id"/>
+<textarea id="entryTextInput" placeholder="text"></textarea>
+<textarea id="entryEmbeddingTextInput" placeholder="embedding_text (если пусто, будет взят text)"></textarea>
+<textarea id="entryMetadataInput" placeholder="metadata JSON">{}</textarea>
+<div class="toolbar">
+<button class="btn btn--brand" id="saveEntryBtn" type="button">Сохранить запись</button>
+<button class="btn" id="reindexEntryBtn" type="button">Переиндексировать запись</button>
+<button class="btn" id="clearEntryDraftBtn" type="button">Очистить черновик</button>
+</div>
+</div>
+</div>
+</section>
+</admin-entry-editor>
+<admin-catalog-designer>
+<section class="workspace-panel workspace-panel--domain hidden" data-workspace-panel="domain">
+<div class="catalog-editor-layout catalog-editor-layout--domain">
+<div class="card card--flat workspace-card catalog-picker-card">
+<div class="workspace-card__head">
+<h3>Домены</h3>
+<span class="pill">выбор / перетаскивание</span>
+</div>
+<div class="catalog-editor-toolbar">
+<select id="domainSelect"></select>
+<button class="btn" id="newDomainBtn" type="button">Новый</button>
+</div>
+<div class="source-list source-list--catalog-editor" id="domainEditorList"></div>
+</div>
+<div class="card card--flat workspace-card catalog-editor-card" data-domain-dropzone="true" id="domainEditorDrop">
+<div class="workspace-card__head">
+<h3>Редактор домена</h3>
+<span class="pill" id="domainEditorMode">новый</span>
+</div>
+<div class="catalog-editor-help">Домен = смысловая область знания. Перетащи домен из проводника или выбери его из списка слева.</div>
+<div class="builder-form builder-form--editor">
+<div class="form-grid form-grid--two">
+<label class="field-label">Имя<input id="domainName" placeholder="scores / contacts / tuition"/></label>
+<label class="field-label hidden">Тип записи по умолчанию<select id="domainDefaultSchema"></select></label>
+</div>
+<label class="field-label">Описание<input id="domainDescription" placeholder="Краткое описание домена"/></label>
+<label class="check-row"><input checked="" id="domainEnabled" type="checkbox"/> включено</label>
+<div class="toolbar toolbar--end">
+<button class="btn btn--brand" id="saveDomainBtn" type="button">Сохранить домен</button>
+<button class="danger" id="deleteDomainBtn" type="button">Удалить</button>
+<button class="btn" id="saveCatalogBtn" type="button">Сохранить каталог</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="workspace-panel workspace-panel--schema hidden no-schema-internal" data-workspace-panel="schema">
+<div class="schema-designer" data-schema-dropzone="true" id="schemaEditorDrop">
+<div class="schema-designer__header card card--flat">
+<div class="schema-title-block">
+<div class="pane-title">Конструктор типа записи</div>
+<input class="schema-title-input" id="schemaName" placeholder="schema_name, например score_threshold_row"/>
+<input class="schema-description-input" id="schemaDescription" placeholder="Что извлекает схема: строку программы, пороговый балл, контакт, срок приема..."/>
+<div class="schema-badges">
+<span class="pill" id="schemaEditorMode">новый</span>
+<span class="pill" id="schemaHandlerPill">обработчик: generic_text</span>
+<span class="pill" id="schemaFieldCountPill">0 полей</span>
+<label class="schema-enabled-toggle"><input checked="" id="schemaEnabled" type="checkbox"/> включено</label>
+</div>
+</div>
+<div class="schema-header-actions">
+<button class="btn" id="newSchemaBtn" type="button">Новый</button>
+<button class="btn" id="testSchemaBtn" type="button">Тест</button>
+<button class="btn btn--brand" id="saveSchemaBtn" type="button">Сохранить</button>
+<button class="danger" id="deleteSchemaBtn" type="button">Удалить</button>
+<button class="btn" id="saveCatalogBtnSchema" type="button">Каталог</button>
+</div>
+</div>
+<div class="schema-designer__body card card--flat">
+<div class="schema-workflow-tabs tabs tabs--compact">
+<button class="tab active" data-schema-designer-tab="fields" type="button">Поля</button>
+<button class="tab" data-schema-designer-tab="preview" type="button">Предпросмотр</button>
+</div>
+<div class="schema-designer-panel" data-schema-designer-panel="fields">
+<div class="schema-panel-head">
+<div>
+<div class="schema-step-label">Поля</div>
+<p>Схема = контракт итоговой JSON-записи. Column/cell/ref лежат в шаблоне привязки и профиле источника, а не в самих полях.</p>
+</div>
+<button class="btn btn--brand" id="addSchemaFieldBtn" type="button">+ Добавить поле</button>
+</div>
+<div class="schema-fields-grid" id="schemaFieldsList"></div>
+</div>
+<div class="schema-designer-panel hidden" data-schema-designer-panel="preview">
+<div class="schema-panel-head">
+<div>
+<div class="schema-step-label">Предпросмотр результата</div>
+<p>Проверка схемы, примера источника, профиля таблицы и валидации.</p>
+</div>
+<button class="btn" id="refreshSchemaPreviewBtn" type="button">Обновить предпросмотр</button>
+</div>
+<pre class="json-wrap schema-preview-output" id="schemaPreviewOutput">{}</pre>
+</div>
+</div>
+</div>
+</section>
+</admin-catalog-designer>
+<admin-entry-editor>
+<section class="workspace-panel workspace-panel--entries hidden" data-workspace-panel="entries">
+<div class="entries-layout entries-layout--pipeline">
+<div class="card card--flat workspace-card entries-preview-card">
+<div class="workspace-card__head">
+<h3>Предпросмотр записей</h3>
+<span class="pill">созданы из источника</span>
+</div>
+<div class="inspector-note">Это предпросмотр результата разметки. Здесь видно, какие записи будут построены из текущей разметки источника.</div>
+<div class="entries-preview-list" id="sourceEntriesPreview"></div>
+</div>
+<div class="card card--flat workspace-card entries-browser">
+<div class="workspace-card__head">
+<h3>Сохраненные записи</h3>
+<span class="pill">проверенные/индексированные</span>
+</div>
+<div class="tabs tabs--compact">
+<button class="tab active" data-entry-layer-tab="curated" type="button">Проверенные</button>
+<button class="tab" data-entry-layer-tab="indexed" type="button">Индексированные</button>
+</div>
+<div class="entry-layer-panel" data-entry-layer-panel="curated">
+<div class="toolbar toolbar--compact">
+<button class="btn" id="loadCuratedEntriesBtn" type="button">Обновить проверенные</button>
+</div>
+<div class="source-list source-list--entries" id="entriesList"></div>
+</div>
+<div class="entry-layer-panel hidden" data-entry-layer-panel="indexed">
+<div class="toolbar toolbar--compact entry-filterbar">
+<input id="entriesSourceId" placeholder="source_id"/>
+<select id="entriesClass"></select>
+<select id="entriesSchema"></select>
+<button class="btn" id="previewEntriesBtn" type="button">Загрузить</button>
+</div>
+<div class="source-list source-list--entries" id="indexedEntriesList"></div>
+</div>
+<pre class="json-wrap raw-dump hidden" id="entriesOutput"></pre>
+</div>
+<div class="card card--flat workspace-card entry-inspector-card">
+<div class="workspace-card__head">
+<h3>Инспектор записи</h3>
+<span class="pill">выбрана</span>
+</div>
+<div class="toolbar toolbar--compact">
+<button class="btn" id="editSelectedEntryBtn" type="button">В редактор записи</button>
+<button class="btn" id="reindexSelectedSavedEntryBtn" type="button">Переиндексировать</button>
+<button class="danger" id="deleteSelectedEntryBtn" type="button">Удалить</button>
+</div>
+<pre class="json-wrap" id="selectedEntryOutput"></pre>
+</div>
+<div class="card card--flat workspace-card chunks-card">
+<div class="workspace-card__head">
+<h3>Чанки</h3>
+<span class="pill">индексировано</span>
+</div>
+<div class="toolbar toolbar--compact">
+<input id="chunksSourceId" placeholder="source_id"/>
+<button class="btn" id="previewChunksBtn" type="button">Загрузить чанки</button>
+</div>
+<pre class="json-wrap" id="chunksOutput"></pre>
+</div>
+</div>
+</section>
+</admin-entry-editor>
+
+<section class="workspace-panel workspace-panel--training hidden" data-workspace-panel="training">
+<div class="card card--flat workspace-card training-workspace-card">
+<admin-training-arena id="trainingArena"></admin-training-arena>
+</div>
+</section>
+</admin-workspace-router>
+<div class="dock-splitter dock-splitter--vertical" data-resize-pane="right" title="Изменить размер инспектора"></div>
+<admin-inspector-panel class="admin-pane admin-pane--right dock-panel" data-dock-panel="inspector" data-dock-title="Инспектор" id="inspectorPane">
+<div class="pane-head">
+<div>
+<div class="pane-title">Инспектор</div>
+<div class="muted">Свойства источника и записи</div>
+</div>
+</div>
+<div class="card card--flat inspector-card" data-inspector-context="source">
+<h3>Свойства источника</h3>
+<div class="row">
+<select id="editorClass"></select>
+<select id="editorSchema"></select>
+</div>
+<div class="row">
+<select id="editorLevel"></select>
+<select id="editorLang"></select>
+</div>
+<input id="editorNotes" placeholder="примечание источника"/>
+</div>
+<div class="card card--flat inspector-card inspector-card--text hidden" data-inspector-context="text" id="docSemanticInspectorCard">
+<div class="workspace-card__head workspace-card__head--compact">
+<h3>Текстовый блок</h3>
+<span class="pill">semantic text</span>
+</div>
+<div id="docSemanticInspectorBody">
+<div class="inspector-note">Выдели блок текста в рабочей области, чтобы редактировать роль, домены, тип знания и системные поля.</div>
+</div>
+</div>
+<div class="card card--flat inspector-card inspector-card--table hidden" data-inspector-context="xlsx" data-xlsx-context-section="all" id="xlsxContextInspectorCard">
+<div class="workspace-card__head">
+<h3 id="xlsxContextTitle">Лист</h3>
+<span class="pill" id="xlsxContextPill">лист</span>
+</div>
+<div class="inspector-note inspector-note--context" id="xlsxContextDetail">Выбор и разметка применяются к таблице в рабочей области.</div>
+<div class="inspector-note inspector-note--compact" data-xlsx-context-section="mixed">Выбрано: <span id="inspectorSelectionSummary">ничего не выбрано</span></div>
+<div class="inspector-grid inspector-grid--two" data-xlsx-context-section="sheet">
+<label class="field-label">Текущий лист<select id="sheetSelect"></select></label>
+<label class="field-label">Режим выбора
+                <select id="tableSelectionMode">
+<option value="cell">ячейки</option>
+<option value="row">строки</option>
+<option value="column">столбцы</option>
+</select>
+</label>
+</div>
+<div class="toolbar toolbar--compact" data-xlsx-context-section="sheet mixed">
+<button class="btn" id="clearTableSelectionBtn" type="button">Очистить выбор</button>
+<button class="btn btn--brand" id="useTableInEntryBtn" type="button">В редактор записи</button>
+</div>
+</div>
+<div class="card card--flat inspector-card inspector-card--table hidden" data-inspector-context="xlsx" data-xlsx-context-section="sheet row">
+<div class="workspace-card__head">
+<h3>Профиль листа</h3>
+<span class="pill" id="tableStructureSummary">нет разметки таблицы</span>
+</div>
+<div class="inspector-note" data-xlsx-context-section="sheet">Профиль листа описывает, где заголовки, данные, метаданные, футер и игнор.</div>
+<div class="table-structure-grid table-structure-grid--inspector" data-xlsx-context-section="sheet">
+<label>Строка заголовков<select id="headerRowSelect"></select></label>
+<label>Данные с строки<select id="dataStartRowSelect"></select></label>
+<label>Строка черновика<select id="draftRowSelect"></select></label>
+<div class="legacy-mapping-controls hidden">
+<select id="titleColumnSelect"></select>
+<select id="sourceColumnSelect"></select>
+<select id="noteColumnSelect"></select>
+<select class="multi" id="textColumnsSelect" multiple=""></select>
+</div>
+</div>
+<div class="segmented-control table-status-control" data-xlsx-context-section="row">
+<button class="btn btn--brand" id="setHeaderFromSelectionBtn" type="button">Заголовок</button>
+<button class="btn" id="setDataFromSelectionBtn" type="button">Данные</button>
+<button class="btn" id="markMetadataFromSelectionBtn" type="button">Мета</button>
+<button class="btn" id="schemaMarkFooterBtn" type="button">Футер</button>
+<button class="btn" id="schemaMarkIgnoreBtn" type="button">Игнор</button>
+</div>
+<div class="toolbar toolbar--compact" data-xlsx-context-section="row">
+<button class="btn" id="clearSelectedTableMarksBtn" type="button">Сбросить статус</button>
+<details class="inspector-inline-details">
+<summary>Еще</summary>
+<button class="btn" id="setDataBelowHeaderBtn" type="button">Ниже → данные</button>
+</details>
+</div>
+<div class="table-meta-list" id="tableMetaList" data-xlsx-context-section="sheet"></div>
+<details class="inspector-inline-details inspector-danger-zone" data-xlsx-context-section="sheet">
+<summary>Служебные действия листа</summary>
+<button class="danger danger--soft" id="clearTableMarksBtn" type="button">Сбросить весь профиль</button>
+</details>
+</div>
+<div class="card card--flat inspector-card inspector-card--table hidden" data-inspector-context="xlsx" data-xlsx-context-section="sheet column cell">
+<div class="workspace-card__head">
+<h3>Поля</h3>
+<span class="pill" id="schemaSelectionSummary">нет полей</span>
+</div>
+<div class="inspector-note" data-xlsx-context-section="sheet">Логика извлечения текущего листа. Клик по полю открывает настройки.</div>
+<div class="action-grid action-grid--field-tools action-grid--field-tools-compact" data-xlsx-context-section="column cell">
+<button class="btn" id="schemaCreateFieldFromColumnBtn" data-xlsx-action-context="column" type="button">Создать / обновить поле</button>
+<button class="btn" id="schemaCreateFieldFromCellBtn" data-xlsx-action-context="cell" type="button">Создать / обновить мета-поле</button>
+</div>
+<div class="mapping-list mapping-list--fields" id="schemaMappingList" data-xlsx-context-section="sheet column cell mixed"></div>
+</div>
+<div class="card card--flat inspector-card inspector-card--table hidden" data-inspector-context="xlsx-entry">
+<div class="workspace-card__head">
+<h3>Черновик из выбора</h3>
+<span class="pill">запись</span>
+</div>
+<div class="stack stack--compact">
+<button class="btn btn--brand" id="buildDraftFromSourceBtn" type="button">Собрать черновик из таблицы</button>
+<div class="toolbar toolbar--compact table-draft-actions table-draft-actions--inspector">
+<button class="btn" id="useSelectionForTitleBtn" type="button">Выбор → заголовок</button>
+<button class="btn" id="useSelectionForTextBtn" type="button">Выбор → текст</button>
+<button class="btn" id="useSelectionForSourceBtn" type="button">Выбор → source_id</button>
+<button class="btn" id="useSelectionForNoteBtn" type="button">Выбор → примечание</button>
+</div>
+</div>
+</div>
+<div class="card card--flat inspector-card inspector-card--global-actions" data-inspector-context="source">
+<div class="inspector-section-title">Действия источника</div>
+<div class="stack stack--compact source-action-stack">
+<button class="btn btn--brand" id="saveMappingBtn" type="button" title="Сохранить текущую разметку, привязки и логические записи этого источника.">Сохранить привязку</button>
+<button class="btn" id="downloadSourceBtn" type="button" title="Скачать выбранный файл: DOCX, XLSX или TXT. Можно отредактировать локально и загрузить заново.">Скачать файл</button>
+<button class="btn btn--warning" id="rebuildSourceBtn" type="button" title="Применить в RAG: сохранить текущую разметку источника, пересобрать записи и чанки для поиска.">Применить в RAG</button>
+<button class="danger danger--soft" id="deleteSourceBtn" type="button" title="Удалить источник из рабочей базы админ-панели.">Удалить источник</button>
+</div>
+</div>
+<div class="card card--flat inspector-card inspector-card--schema hidden no-schema-internal" data-inspector-context="schema">
+<div class="workspace-card__head">
+<h3>Сводка схемы</h3>
+<span class="pill" id="schemaInspectorStatus">не выбрано</span>
+</div>
+<div class="inspector-note" id="schemaInspectorSummary">Выбери схему в проводнике или создай новую. Рабочая область — поля и предпросмотр. Привязка таблиц делается в документе.</div>
+<div class="schema-validation-list" id="schemaValidationList"></div>
+</div>
+<div class="card card--flat inspector-card inspector-card--schema hidden no-schema-internal" data-inspector-context="schema">
+<div class="workspace-card__head">
+<h3>Настройка схемы</h3>
+<span class="pill">контракт</span>
+</div>
+<div class="schema-designer__type schema-designer__type--inspector">
+<div class="schema-type-grid schema-type-grid--inspector">
+<label class="schema-type-card"><input name="schemaTypeChoice" type="radio" value="generic_text"/> <span><strong>Обычный текст</strong><small>простая/абзацная запись</small></span></label>
+<label class="schema-type-card"><input name="schemaTypeChoice" type="radio" value="sectioned_text"/> <span><strong>Документ с разделами</strong><small>разбивка по заголовкам</small></span></label>
+<label class="schema-type-card"><input name="schemaTypeChoice" type="radio" value="table_row"/> <span><strong>Строки таблицы</strong><small>одна строка → одна запись</small></span></label>
+<label class="schema-type-card"><input name="schemaTypeChoice" type="radio" value="key_value"/> <span><strong>Документ ключ-значение</strong><small>метки и значения</small></span></label>
+</div>
+<label class="field-label schema-handler-advanced">Обработчик<select id="schemaHandler">
+<option value="generic_text">generic_text</option>
+<option value="sectioned_text">sectioned_text</option>
+<option value="program_entry">program_entry</option>
+<option value="program_text">program_text</option>
+<option value="program_tuition_entry">program_tuition_entry</option>
+<option value="dormitory_tuition_entry">dormitory_tuition_entry</option>
+<option value="tuition_text">tuition_text</option>
+<option value="timeline_entry">timeline_entry</option>
+<option value="timeline_text">timeline_text</option>
+</select></label>
+</div>
+</div>
+<div class="card card--flat inspector-card inspector-card--schema hidden" data-inspector-context="schema xlsx" data-xlsx-context-section="field">
+<div class="workspace-card__head">
+<h3>Поле</h3>
+<span class="pill" id="schemaFieldInspectorPill">нет поля</span>
+</div>
+<div class="inspector-note" id="schemaFieldInspectorEmpty">Выбери поле в списке полей либо создай его из выделенной колонки/ячейки.</div>
+<div class="schema-field-inspector-form hidden" id="schemaFieldInspectorForm">
+<label class="field-label">Имя<input id="schemaInspectorFieldName" placeholder="program_code"/></label>
+<label class="field-label">Метка<input id="schemaInspectorFieldLabel" placeholder="Код программы"/></label>
+<div class="inspector-grid inspector-grid--two">
+<label class="field-label">Тип<select id="schemaInspectorFieldType">
+<option value="text">text</option>
+<option value="number">number</option>
+<option value="date">date</option>
+<option value="enum">enum</option>
+<option value="url">url</option>
+</select></label>
+<label class="field-label">System<select id="schemaInspectorFieldSystem"></select></label>
+<label class="field-label">Назначение<select id="schemaInspectorFieldDestination">
+<option value="fields">fields</option>
+<option value="metadata">metadata</option>
+<option value="title">title</option>
+<option value="text">text</option>
+<option value="embedding_text">embedding_text</option>
+</select></label>
+</div>
+<div class="inspector-note"><strong>Привязка:</strong> <span id="schemaInspectorFieldMapping">не привязано</span><br/>Изменения поля применяются сразу. Новая привязка создается из выбранной колонки или ячейки.</div>
+<details class="field-advanced">
+<summary>Дополнительно</summary>
+<label class="field-label">JSON валидации<input id="schemaInspectorFieldValidation" placeholder='{"pattern":"^B\\d+"}'/></label>
+<label class="check-row"><input id="schemaInspectorFieldRequired" type="checkbox"/> обязательное</label>
+</details>
+</div>
+</div>
+<div class="card card--flat inspector-card">
+<h3>Статус пересборки</h3>
+<div class="status" id="rebuildStatus">● Готово к пересборке.</div>
+</div>
+</admin-inspector-panel>
+</div>
+<div class="dock-splitter dock-splitter--horizontal" data-resize-pane="bottom" title="Изменить размер нижней панели"></div>
+<admin-bottom-console class="admin-bottom dock-panel is-collapsed" data-dock-panel="bottom" data-dock-title="Журнал сборки" id="bottomPane">
+<div class="dock-panel__head">
+<div class="pane-title">Журнал сборки</div>
+<div class="dock-actions"><button class="dock-btn" id="bottomPaneToggle" type="button" title="Показать/скрыть журнал сборки">⌄</button></div>
+</div>
+<div class="tabs tabs--compact">
+<button class="tab active" data-bottom-tab="logs" type="button">Консоль</button>
+<button class="tab" data-bottom-tab="debug" type="button">Отладка поиска</button>
+<button class="tab" data-bottom-tab="jobs" type="button">Задачи</button>
+<button class="tab" data-bottom-tab="validation" type="button">Валидация</button>
+</div>
+<div class="bottom-panel" data-bottom-panel="logs">
+<pre class="json-wrap admin-log" id="adminOutput">журнал сборки</pre>
+</div>
+<div class="bottom-panel hidden" data-bottom-panel="debug">
+<div class="card card--flat">
+<div class="workspace-card__head">
+<h3>Отладка поиска</h3>
+<span class="pill">поиск</span>
+</div>
+<div class="row">
+<input id="debugQuery" placeholder="запрос"/>
+<select class="multi" id="debugDomains" multiple=""></select>
+</div>
+<div class="row">
+<select class="multi" id="debugSchemas" multiple=""></select>
+<select id="debugLevel"></select>
+</div>
+<div class="row">
+<select id="debugLang"></select>
+<button class="btn btn--brand" id="debugBtn" type="button">Запустить отладку поиска</button>
+</div>
+<pre class="json-wrap" id="debugOutput"></pre>
+</div>
+</div>
+<div class="bottom-panel hidden" data-bottom-panel="jobs">
+<div class="card card--flat">
+<h3>Задачи</h3>
+<div class="muted">Здесь виден текущий статус пересборки и служебные операции индексации.</div>
+<div class="status" id="jobsStatusMirror">Нет активных задач.</div>
+</div>
+</div>
+<div class="bottom-panel hidden" data-bottom-panel="validation">
+<div class="card card--flat">
+<h3>Валидация</h3>
+<div class="muted">Проверки правил извлечения и привязок можно выводить сюда по мере расширения админки.</div>
+<pre class="json-wrap" id="validationOutput">{}</pre>
+</div>
+</div>
+</admin-bottom-console>
+</section>
+</div>
+<admin-upload-modal aria-labelledby="uploadModalTitle" aria-modal="true" class="modal hidden" id="uploadModal" role="dialog">
+<div class="modal__backdrop" data-upload-close=""></div>
+<section class="modal__panel upload-modal" tabindex="-1">
+<div class="modal__head">
+<div>
+<h2 id="uploadModalTitle">Загрузить источник</h2>
+<div class="muted">Добавление файла в реестр. PDF/JPG/PNG проходят OCR: текст сохраняется как DOCX, найденные таблицы — как XLSX.</div>
+</div>
+<button aria-label="Закрыть" class="modal__close" id="closeUploadModalBtn" type="button">×</button>
+</div>
+<label class="upload-drop" for="uploadFile">
+<span class="upload-drop__title">Выбрать файл</span>
+<span class="upload-drop__meta" id="uploadFileName">Файл не выбран</span>
+<input id="uploadFile" type="file" accept=".txt,.docx,.xlsx,.pdf,.jpg,.jpeg,.png"/>
+</label>
+<div class="row">
+<select id="uploadClass"></select>
+<select id="uploadSchema"></select>
+</div>
+<div class="row">
+<select id="uploadLevel"></select>
+<select id="uploadLang"></select>
+</div>
+<div class="upload-progress" id="uploadProgressWrap" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+<div class="upload-progress__bar" id="uploadProgressBar"></div>
+</div>
+<div class="upload-status hidden" id="uploadStatus" aria-live="polite"></div>
+<div class="modal__actions">
+<button class="btn" id="cancelUploadModalBtn" type="button">Отмена</button>
+<button class="btn btn--brand" id="uploadBtn" type="button">Загрузить</button>
+</div>
+</section>
+</admin-upload-modal>
+<div class="context-menu hidden" id="tableContextMenu" role="menu"></div>
+<script src="/config.js"></script>
+<script src="/static/js/admin/main.js?v=training-arena-v1" type="module"></script>
+</body>
+</html>
