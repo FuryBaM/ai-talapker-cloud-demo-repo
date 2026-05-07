@@ -23,7 +23,7 @@ from core.admin_auth import (
 )
 from core.config import INPUT_DATA_DIR, KNOWLEDGE_ENTRIES_PATH, KNOWLEDGE_REGISTRY_PATH, RAG_CHUNKS_PATH
 from core.entry_store import delete_curated_entry, load_curated_entries, upsert_curated_entry
-from core.generation import fallback_suggestions, generate_session_suggestions, generate_suggestions
+from core.generation import fallback_suggestions, generate_from_messages, generate_session_suggestions, generate_suggestions
 from core.interview_service import refresh_interview_metadata
 from core.knowledge_assets import (
     get_index,
@@ -120,17 +120,22 @@ app.add_middleware(
 )
 
 
+
 def _direct_chat_answer(message: str, lang: str = "ru") -> str | None:
-    text = (message or "").strip().lower()
+    text = (message or "").strip().lower().replace("ё", "е")
     compact = " ".join(text.split())
-    greetings = {"привет", "здравствуйте", "салам", "сәлем", "hello", "hi"}
-    smalltalk = {"как дела", "как ты", "қалың қалай"}
-    if compact in greetings:
+    if (
+        compact in {"привет", "здравствуйте", "салам", "салем", "сәлем", "hello", "hi"}
+        or compact.startswith("прив")
+        or compact.startswith("салам")
+        or compact.startswith("салем")
+        or compact.startswith("сәлем")
+    ):
         return (
             "Здравствуйте. Я AI-Talapker, демонстрационный ассистент по поступлению. "
             "Могу отвечать на вопросы по образовательным программам, документам, грантам, общежитию и срокам приёма."
         )
-    if compact in smalltalk:
+    if compact in {"как дела", "как ты", "қалың қалай", "калайсын", "қалайсың"}:
         return (
             "Работаю в демонстрационном режиме. Задайте вопрос по поступлению, программам, документам, грантам, "
             "общежитию или срокам приёма."
@@ -143,6 +148,73 @@ def _blank_answer_fallback(lang: str = "ru") -> str:
         "Сервер получил запрос, но модель или база знаний вернула пустой ответ. "
         "Проверьте OPENROUTER_CHAT_MODEL, QDRANT_COLLECTION и наличие загруженных chunks в Qdrant."
     )
+
+
+def _format_context_hit(hit: dict, index: int) -> str:
+    title = str(hit.get("title") or hit.get("source_id") or hit.get("source_file") or f"Фрагмент {index}").strip()
+    text = str(hit.get("text") or "").strip()
+    if len(text) > 900:
+        text = text[:900].rstrip() + "..."
+    return f"[{index}] {title}\n{text}"
+
+
+def _deterministic_rag_answer(question: str, hits: list[dict]) -> str:
+    lines = ["Нашёл релевантные фрагменты в базе знаний. Кратко по найденным данным:"]
+    for index, hit in enumerate(hits[:4], start=1):
+        title = str(hit.get("title") or hit.get("source_file") or f"Источник {index}").strip()
+        text = str(hit.get("text") or "").strip()
+        if not text:
+            continue
+        text = " ".join(text.split())
+        if len(text) > 420:
+            text = text[:420].rstrip() + "..."
+        lines.append(f"{index}. {title}: {text}")
+    if len(lines) == 1:
+        return _blank_answer_fallback("ru")
+    return "\n".join(lines)
+
+
+def _simple_cloud_rag_answer(question: str, lang: str = "ru") -> tuple[str, list[dict]]:
+    """Small Render-demo fallback: query Qdrant directly and answer from hits.
+
+    This protects the demo from empty planner/model responses. It does not replace
+    the full LangGraph pipeline; it only runs when the normal answer is blank.
+    """
+    try:
+        hits = search_debug(question, get_index(), top_k=6)
+    except Exception as exc:
+        return f"Ошибка поиска в Qdrant: {exc}", []
+
+    hits = [hit for hit in hits if str(hit.get("text") or "").strip()]
+    if not hits:
+        return (
+            "В Qdrant подключение есть, но по этому вопросу не найдено релевантных chunks. "
+            "Проверьте, что коллекция ai_talapker_fastembed_384 заполнена и backend использует именно её.",
+            [],
+        )
+
+    context = "\n\n".join(_format_context_hit(hit, idx) for idx, hit in enumerate(hits[:5], start=1))
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are AI-Talapker, a university admissions assistant. "
+                "Answer only using the provided context. If the context is insufficient, say so briefly. "
+                "Answer in Russian unless the user asks another language. Do not invent facts."
+            ),
+        },
+        {
+            "role": "user",
+            "content": f"Question: {question}\n\nContext:\n{context}\n\nGive a concise grounded answer.",
+        },
+    ]
+    try:
+        answer = generate_from_messages(messages, max_new_tokens=450, ctx_texts=[h.get("text", "") for h in hits[:5]]).strip()
+    except Exception:
+        answer = ""
+    if not answer:
+        answer = _deterministic_rag_answer(question, hits)
+    return answer, hits
 
 
 _rate_windows: dict[str, deque[float]] = defaultdict(deque)
@@ -171,6 +243,16 @@ async def health():
     return {"ok": True}
 
 
+@app.get("/debug/rag")
+async def debug_rag(q: str = "Какие образовательные программы есть?"):
+    hits = search_debug(q, get_index(), top_k=5)
+    return {
+        "query": q,
+        "hit_count": len(hits),
+        "hits": hits,
+    }
+
+
 @app.on_event("shutdown")
 async def shutdown_event():
     shutdown_knowledge_assets()
@@ -192,7 +274,7 @@ async def chat(req: ChatRequest, _: None = Depends(rate_limit(30, 60, "chat"))):
     direct_answer = _direct_chat_answer(req.message, req.lang)
     if direct_answer:
         return ChatResponse(
-            session_id=req.session_id,
+            session_id=req.session_id or "",
             answer=direct_answer,
             route="direct",
             profile_complete=False,
@@ -208,12 +290,15 @@ async def chat(req: ChatRequest, _: None = Depends(rate_limit(30, 60, "chat"))):
         message_id=req.message_id,
     )
     answer = str(result.get("answer") or "").strip()
+    route = result.get("route", "knowledge")
     if not answer:
-        answer = _blank_answer_fallback(req.lang)
+        answer, hits = _simple_cloud_rag_answer(req.message, req.lang)
+        if hits:
+            route = "simple_rag_fallback"
     return ChatResponse(
-        session_id=result["session_id"],
-        answer=answer,
-        route=result.get("route", "knowledge"),
+        session_id=result.get("session_id") or req.session_id or "",
+        answer=answer or _blank_answer_fallback(req.lang),
+        route=route,
         profile_complete=bool(result.get("profile_complete")),
     )
 
