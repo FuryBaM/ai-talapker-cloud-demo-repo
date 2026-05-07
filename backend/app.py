@@ -21,7 +21,7 @@ from core.admin_auth import (
     revoke_api_key,
     update_admin_user,
 )
-from core.config import INPUT_DATA_DIR, KNOWLEDGE_ENTRIES_PATH, KNOWLEDGE_REGISTRY_PATH, RAG_CHUNKS_PATH
+from core.config import INPUT_DATA_DIR, KNOWLEDGE_ENTRIES_PATH, KNOWLEDGE_REGISTRY_PATH, RAG_CHUNKS_PATH, QDRANT_COLLECTION
 from core.entry_store import delete_curated_entry, load_curated_entries, upsert_curated_entry
 from core.generation import fallback_suggestions, generate_from_messages, generate_session_suggestions, generate_suggestions
 from core.interview_service import refresh_interview_metadata
@@ -37,7 +37,7 @@ from core.knowledge_registry import load_registry, upsert_registry
 from core.normalize_input_data import parse_source_content
 from core.ocr_ingest import OCR_INPUT_EXTENSIONS, process_ocr_upload
 from core.orchestrator import run_agent_turn
-from core.rag import search_debug
+from core.rag import QdrantIndex, _make_qdrant_client, search_debug
 from core.security import (
     DEFAULT_MAX_UPLOAD_BYTES,
     safe_child_path,
@@ -121,6 +121,28 @@ app.add_middleware(
 
 
 
+_CLOUD_SEARCH_INDEX: QdrantIndex | None = None
+
+
+def _get_search_index() -> QdrantIndex:
+    """Return an initialized QdrantIndex even when APP_DISABLE_MODEL_LOAD=1.
+
+    In Render demo mode APP_DISABLE_MODEL_LOAD=1 intentionally skips build_index()
+    during import, so knowledge_assets.get_index() returns None. Search can still
+    work against an already-populated Qdrant Cloud collection; it only needs a
+    client + collection name, not local model preloading.
+    """
+    global _CLOUD_SEARCH_INDEX
+    existing = get_index()
+    if existing is not None:
+        return existing
+    if _CLOUD_SEARCH_INDEX is None:
+        _CLOUD_SEARCH_INDEX = QdrantIndex(
+            client=_make_qdrant_client(),
+            collection_name=os.getenv("QDRANT_COLLECTION", QDRANT_COLLECTION).strip() or QDRANT_COLLECTION,
+        )
+    return _CLOUD_SEARCH_INDEX
+
 def _direct_chat_answer(message: str, lang: str = "ru") -> str | None:
     text = (message or "").strip().lower().replace("ё", "е")
     compact = " ".join(text.split())
@@ -181,7 +203,7 @@ def _simple_cloud_rag_answer(question: str, lang: str = "ru") -> tuple[str, list
     the full LangGraph pipeline; it only runs when the normal answer is blank.
     """
     try:
-        hits = search_debug(question, get_index(), top_k=6)
+        hits = search_debug(question, _get_search_index(), top_k=6)
     except Exception as exc:
         return f"Ошибка поиска в Qdrant: {exc}", []
 
@@ -245,7 +267,7 @@ async def health():
 
 @app.get("/debug/rag")
 async def debug_rag(q: str = "Какие образовательные программы есть?"):
-    hits = search_debug(q, get_index(), top_k=5)
+    hits = search_debug(q, _get_search_index(), top_k=5)
     return {
         "query": q,
         "hit_count": len(hits),
@@ -256,6 +278,13 @@ async def debug_rag(q: str = "Какие образовательные прог
 @app.on_event("shutdown")
 async def shutdown_event():
     shutdown_knowledge_assets()
+    global _CLOUD_SEARCH_INDEX
+    if _CLOUD_SEARCH_INDEX is not None:
+        try:
+            _CLOUD_SEARCH_INDEX.client.close()
+        except Exception:
+            pass
+        _CLOUD_SEARCH_INDEX = None
 
 @app.post("/ask", response_model=Answer)
 async def ask_question(req: Ask, _: None = Depends(rate_limit(30, 60, "ask"))):
