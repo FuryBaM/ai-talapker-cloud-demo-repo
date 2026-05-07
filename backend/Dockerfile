@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements-cloud.txt ./requirements-cloud.txt
 RUN pip install --upgrade pip && pip install -r requirements-cloud.txt
 
-COPY app.py build_rag_chunks.py build_rag_documents.py download.py index_qdrant.py login.py manage.py normalize_input_data.py rebuild_rag_data.py test.py ./
+COPY app.py build_rag_chunks.py build_rag_documents.py download.py index_qdrant.py manage.py normalize_input_data.py rebuild_rag_data.py test.py ./
 COPY core ./core
 COPY configs ./configs
 COPY data ./data
