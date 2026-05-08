@@ -15,6 +15,7 @@ from qdrant_client.models import Distance, FieldCondition, Filter, MatchValue, P
 
 from core.config import (
     EMBED_BATCH_SIZE,
+    EMBED_BACKEND,
     KNOWLEDGE_ENTRIES_PATH,
     MAX_CTX_CHUNKS,
     OVERLAP_TOKENS,
@@ -778,6 +779,8 @@ def find_passage(
     tokenizer=None,
     token_limit: int = TOKEN_LIMIT,
 ):
+    if EMBED_BACKEND == "payload":
+        return None
     query_embedding = make_query(query, model=model, tokenizer=tokenizer, token_limit=token_limit)
     query_filter = _build_filter(domains=domains, schemas=schemas, education_level=education_level, language=language)
     results = index.client.search(
@@ -803,6 +806,31 @@ def search_debug(
     education_level: str | None = None,
     language: str | None = None,
 ):
+    if EMBED_BACKEND == "payload":
+        query_filter = _build_filter(domains=domains, schemas=schemas, education_level=education_level, language=language)
+        points, _ = index.client.scroll(
+            collection_name=index.collection_name,
+            limit=top_k,
+            with_payload=True,
+            with_vectors=False,
+            scroll_filter=query_filter,
+        )
+        return [
+            {
+                "score": 0.0,
+                "source_id": str((point.payload or {}).get("source_id", "")),
+                "class_name": str((point.payload or {}).get("class_name", "")),
+                "domain": str((point.payload or {}).get("domain") or (point.payload or {}).get("class_name", "")),
+                "schema": str((point.payload or {}).get("schema", "")),
+                "title": str((point.payload or {}).get("title", "")),
+                "text": _payload_to_context(point.payload or {}),
+                "chunk_id": str((point.payload or {}).get("chunk_id", "")),
+                "logical_group_id": str((point.payload or {}).get("logical_group_id") or ""),
+                "entry_type": str((point.payload or {}).get("entry_type") or (point.payload or {}).get("schema") or ""),
+                "metadata": dict((point.payload or {}).get("metadata", {}) or {}),
+            }
+            for point in points
+        ]
     query_embedding = make_query(query)
     query_filter = _build_filter(domains=domains, schemas=schemas, education_level=education_level, language=language)
     results = index.client.search(

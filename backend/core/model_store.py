@@ -124,6 +124,12 @@ class DisabledEmbeddingModel:
         return vectors[0].tolist() if single else vectors.tolist()
 
 
+class PayloadOnlyEmbeddingModel(DisabledEmbeddingModel):
+    """Placeholder for Qdrant payload/keyword retrieval mode."""
+
+    backend = "payload"
+
+
 class DisabledChatModel:
     backend = "disabled"
     device = "disabled"
@@ -800,6 +806,8 @@ torch = _configure_torch()
 
 
 def _load_embedding_pair():
+    if EMBED_BACKEND == "payload":
+        return ApproxTextTokenizer(), PayloadOnlyEmbeddingModel()
     if EMBED_BACKEND == "fastembed":
         return ApproxTextTokenizer(), FastEmbedEmbeddingModel(
             model_name=FASTEMBED_MODEL,
@@ -986,7 +994,7 @@ def _truthy_env(name: str, default: str = "0") -> bool:
     return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
 
 
-_CLOUD_SAFE_EMBED_BACKENDS = {"fastembed", "openrouter"}
+_CLOUD_SAFE_EMBED_BACKENDS = {"fastembed", "openrouter", "payload"}
 _CLOUD_SAFE_CHAT_BACKENDS = {"openrouter"}
 _DISABLE_LOCAL_MODEL_LOAD = _truthy_env("APP_DISABLE_MODEL_LOAD") or _truthy_env("APP_DISABLE_LOCAL_MODEL_LOAD")
 _DISABLE_ALL_MODEL_LOAD = _truthy_env("APP_DISABLE_ALL_MODEL_LOAD")

@@ -19,19 +19,11 @@ services:
       - key: APP_GENERATION_BACKEND
         value: openrouter
       - key: EMBEDDING_PROVIDER
-        value: fastembed
+        value: payload
       - key: APP_EMBEDDING_BACKEND
-        value: fastembed
+        value: payload
       - key: OPENROUTER_CHAT_MODEL
         value: meta-llama/llama-3.3-70b-instruct:free
-      - key: FASTEMBED_MODEL
-        value: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-      - key: FASTEMBED_DIMENSIONS
-        value: "384"
-      - key: FASTEMBED_THREADS
-        value: "1"
-      - key: FASTEMBED_BATCH_SIZE
-        value: "16"
       - key: QDRANT_COLLECTION
         value: ai_talapker_fastembed_384
       - key: OPENROUTER_API_KEY

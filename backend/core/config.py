@@ -93,6 +93,10 @@ def _normalize_backend(raw: Any, default: str) -> str:
         "open_router": "openrouter",
         "fast_embed": "fastembed",
         "qdrant_fastembed": "fastembed",
+        "keyword": "payload",
+        "word": "payload",
+        "lexical": "payload",
+        "qdrant_payload": "payload",
     }
     return aliases.get(value, value)
 
