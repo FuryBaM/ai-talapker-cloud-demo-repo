@@ -154,10 +154,19 @@ async def root_head():
 @app.get("/health")
 async def health():
     index = get_index()
+    qdrant_points = None
+    qdrant_error = ""
+    if index is not None:
+        try:
+            qdrant_points = int(index.client.count(collection_name=index.collection_name, exact=False).count)
+        except Exception as exc:
+            qdrant_error = str(exc)[:500]
     return {
         "ok": True,
         "index_ready": index is not None,
         "collection": getattr(index, "collection_name", None),
+        "qdrant_points": qdrant_points,
+        "qdrant_error": qdrant_error,
         "env": os.getenv("APP_ENV", ""),
         "embedding_backend": os.getenv("APP_EMBEDDING_BACKEND") or os.getenv("EMBEDDING_PROVIDER", ""),
         "generation_backend": os.getenv("APP_GENERATION_BACKEND") or os.getenv("LLM_PROVIDER", ""),

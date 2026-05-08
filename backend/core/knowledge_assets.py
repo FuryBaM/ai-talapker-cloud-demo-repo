@@ -34,17 +34,24 @@ def _env_flag(name: str, default: str = "0") -> bool:
     return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _load_initial_index():
-    """Initialize retrieval without forcing local index rebuild in cloud mode.
+def _use_existing_qdrant_index_on_startup() -> bool:
+    explicit = os.getenv("APP_USE_EXISTING_QDRANT_INDEX")
+    if explicit is not None:
+        return _env_flag("APP_USE_EXISTING_QDRANT_INDEX")
+    return bool(os.getenv("QDRANT_URL", "").strip())
 
-    APP_DISABLE_MODEL_LOAD=1 is used on Render to prevent expensive startup
-    rebuilds and old local model loading.  The full LangGraph pipeline still
-    needs a QdrantIndex object, so by default we open the already-populated
-    Qdrant collection instead of returning None.
+
+def _load_initial_index():
+    """Initialize retrieval safely for local and cloud deployments.
+
+    In Render/Qdrant Cloud mode the collection already exists. Startup must
+    not call build_index(), because that can recreate the remote collection or
+    rebuild from incomplete local files. The graph still receives a QdrantIndex
+    object, and query embeddings are produced by the configured backend.
     """
-    if _env_flag("APP_DISABLE_MODEL_LOAD"):
-        if _env_flag("APP_USE_EXISTING_QDRANT_INDEX", "1"):
-            return open_existing_index()
+    if _use_existing_qdrant_index_on_startup():
+        return open_existing_index()
+    if _env_flag("APP_DISABLE_MODEL_LOAD") or _env_flag("APP_DISABLE_LOCAL_MODEL_LOAD"):
         return None
     return build_index()
 

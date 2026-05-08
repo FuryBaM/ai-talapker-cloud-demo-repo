@@ -223,14 +223,40 @@ def path_bonus(query: str, path_to_file: str, *, query_stems: Callable[[str], se
     return sum(1 for stem in query_stem_set if stem in path_words)
 
 
+def _payload_domain_candidates(payload: dict[str, Any]) -> set[str]:
+    metadata = dict(payload.get("metadata", {}) or {})
+    candidates = {
+        str(payload.get("domain") or "").lower(),
+        str(payload.get("class_name") or "").lower(),
+        str(metadata.get("domain") or "").lower(),
+        str(metadata.get("class_name") or "").lower(),
+    }
+    source_file = str(payload.get("source_file") or payload.get("path_to_file") or "").replace("\\", "/").lower()
+    for domain_name in [
+        "benefits",
+        "contacts",
+        "documents",
+        "housing",
+        "master",
+        "programs",
+        "scores",
+        "timeline",
+        "tuition",
+        "university_info",
+    ]:
+        if f"/{domain_name}/" in f"/{source_file}" or source_file.startswith(f"{domain_name}/"):
+            candidates.add(domain_name)
+    return {item for item in candidates if item}
+
+
 def payload_matches_filters(payload: dict[str, Any], filters: dict[str, Any]) -> bool:
-    domain = str(payload.get("class_name") or payload.get("domain") or "").lower()
+    domain_candidates = _payload_domain_candidates(payload)
     schema = str(payload.get("schema") or "").lower()
     education_level = str(payload.get("education_level") or "").lower()
     language = str(payload.get("language") or "").lower()
-    selected_domains = [item for item in filters.get("domains", []) if item]
-    selected_schemas = [item for item in filters.get("schemas", []) if item]
-    if selected_domains and domain not in selected_domains:
+    selected_domains = [str(item).lower() for item in filters.get("domains", []) if item]
+    selected_schemas = [str(item).lower() for item in filters.get("schemas", []) if item]
+    if selected_domains and not any(domain in domain_candidates for domain in selected_domains):
         return False
     if selected_schemas and schema not in selected_schemas:
         return False
@@ -348,6 +374,81 @@ def _program_subject_context(query: str, *, payload_context_snippet: Callable[[d
     return [text for _, text in scored[:8]]
 
 
+def _program_overview_context(query: str, *, payload_context_snippet: Callable[[dict[str, Any]], str]) -> list[str]:
+    lower = str(query or "").lower()
+    wants_programs = any(
+        token in lower
+        for token in ["программ", "специальност", "образовательн", "направлен", "мамандық", "бағдарлама"]
+    )
+    precise_fact = any(
+        token in lower
+        for token in [
+            "балл",
+            "порог",
+            "стоим",
+            "цена",
+            "оплата",
+            "документ",
+            "перечень",
+            "срок",
+            "дата",
+            "общежит",
+        ]
+    )
+    if not wants_programs or precise_fact:
+        return []
+
+    scored: list[tuple[int, str]] = []
+    seen: set[str] = set()
+    for payload in _scroll_payloads(limit=3000):
+        domain_candidates = _payload_domain_candidates(payload)
+        text_blob = _payload_text_blob(payload)
+        source_file = str(payload.get("source_file") or payload.get("path_to_file") or "").lower()
+        if "programs" not in domain_candidates and "образовательн" not in text_blob and "білім беру" not in text_blob:
+            continue
+
+        score = 0
+        schema = str(payload.get("schema") or "").lower()
+        title = str(payload.get("title") or "").lower()
+        if "programs" in domain_candidates:
+            score += 8
+        if schema in {"program_entry", "table_facts"}:
+            score += 4
+        if any(
+            token in title
+            for token in [
+                "образовательные программы",
+                "приложение",
+                "бакалавриат",
+                "магистратура",
+                "докторантура",
+            ]
+        ):
+            score += 4
+        if any(
+            token in text_blob
+            for token in [
+                "группа образовательных программ",
+                "образовательная программа",
+                "наименование образовательной программы",
+                "код и классификация",
+            ]
+        ):
+            score += 5
+        if "серпін" in text_blob or "serpin" in source_file:
+            score -= 3
+        if score <= 0:
+            continue
+        text = payload_context_snippet(payload).strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        scored.append((score, text))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [text for _, text in scored[:10]]
+
+
 def _local_retrieval_filters(query: str) -> dict[str, Any] | None:
     lower = str(query or "").lower()
     domains: list[str] = []
@@ -397,6 +498,9 @@ def retrieve_knowledge_context(
     program_ctx = _program_subject_context(query, payload_context_snippet=payload_context_snippet)
     if program_ctx:
         return program_ctx
+    program_overview_ctx = _program_overview_context(query, payload_context_snippet=payload_context_snippet)
+    if program_overview_ctx:
+        return program_overview_ctx
     retrieval_filters = _local_retrieval_filters(query) or (llm_retrieval_filters(query, history_text) if query.strip() else {"domains": list(DEFAULT_RETRIEVAL_DOMAINS), "schemas": [], "education_level": None, "language": None})
     if not retrieval_filters.get("domains"):
         retrieval_filters["domains"] = ["university_info"]

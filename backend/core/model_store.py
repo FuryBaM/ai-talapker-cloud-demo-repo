@@ -110,7 +110,7 @@ class ApproxTextTokenizer:
 
 
 class DisabledEmbeddingModel:
-    """Tiny CI/smoke-test model used only when APP_DISABLE_MODEL_LOAD=1."""
+    """Tiny CI/smoke-test model used only when real model loading is explicitly disabled."""
 
     def get_sentence_embedding_dimension(self) -> int:
         return 8
@@ -982,11 +982,39 @@ def _load_guard_pair():
     raise RuntimeError(f"Unsupported guard backend: {GUARD_BACKEND}")
 
 
-if os.getenv("APP_DISABLE_MODEL_LOAD", "0").strip().lower() in {"1", "true", "yes", "on"}:
+def _truthy_env(name: str, default: str = "0") -> bool:
+    return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
+
+_CLOUD_SAFE_EMBED_BACKENDS = {"fastembed", "openrouter"}
+_CLOUD_SAFE_CHAT_BACKENDS = {"openrouter"}
+_DISABLE_LOCAL_MODEL_LOAD = _truthy_env("APP_DISABLE_MODEL_LOAD") or _truthy_env("APP_DISABLE_LOCAL_MODEL_LOAD")
+_DISABLE_ALL_MODEL_LOAD = _truthy_env("APP_DISABLE_ALL_MODEL_LOAD")
+
+
+if _DISABLE_ALL_MODEL_LOAD:
+    # Explicit CI/smoke-test mode: no external API clients and no embedding model.
     embed_tokenizer, embed_model = ApproxTextTokenizer(), DisabledEmbeddingModel()
     gen_model, gen_tokenizer, im_end_token_id = DisabledChatModel(), None, None
     guard_model, guard_tokenizer, guard_im_end_token_id = None, None, None
 else:
-    embed_tokenizer, embed_model = _load_embedding_pair()
-    gen_model, gen_tokenizer, im_end_token_id = _load_generation_pair()
-    guard_model, guard_tokenizer, guard_im_end_token_id = _load_guard_pair()
+    # Render/cloud mode must still load cloud-safe backends. The old
+    # APP_DISABLE_MODEL_LOAD=1 flag used to replace FastEmbed with an
+    # 8-dimensional dummy model, which breaks retrieval against the
+    # ai_talapker_fastembed_384 Qdrant collection.
+    if _DISABLE_LOCAL_MODEL_LOAD and EMBED_BACKEND not in _CLOUD_SAFE_EMBED_BACKENDS:
+        embed_tokenizer, embed_model = ApproxTextTokenizer(), DisabledEmbeddingModel()
+    else:
+        embed_tokenizer, embed_model = _load_embedding_pair()
+
+    if _DISABLE_LOCAL_MODEL_LOAD and GEN_BACKEND not in _CLOUD_SAFE_CHAT_BACKENDS:
+        gen_model, gen_tokenizer, im_end_token_id = DisabledChatModel(), None, None
+    else:
+        gen_model, gen_tokenizer, im_end_token_id = _load_generation_pair()
+
+    if not ANSWER_GUARD_ENABLED:
+        guard_model, guard_tokenizer, guard_im_end_token_id = None, None, None
+    elif _DISABLE_LOCAL_MODEL_LOAD and GUARD_BACKEND not in _CLOUD_SAFE_CHAT_BACKENDS:
+        guard_model, guard_tokenizer, guard_im_end_token_id = None, None, None
+    else:
+        guard_model, guard_tokenizer, guard_im_end_token_id = _load_guard_pair()

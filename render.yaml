@@ -10,18 +10,30 @@ services:
         value: demo
       - key: APP_CONFIG_FILE
         value: configs/app.cloud.yaml
+      - key: APP_USE_EXISTING_QDRANT_INDEX
+        value: "1"
+      - key: APP_DISABLE_LOCAL_MODEL_LOAD
+        value: "1"
       - key: LLM_PROVIDER
         value: openrouter
-      - key: EMBEDDING_PROVIDER
+      - key: APP_GENERATION_BACKEND
         value: openrouter
+      - key: EMBEDDING_PROVIDER
+        value: fastembed
+      - key: APP_EMBEDDING_BACKEND
+        value: fastembed
       - key: OPENROUTER_CHAT_MODEL
-        value: openrouter/free
-      - key: OPENROUTER_EMBEDDING_MODEL
-        value: openai/text-embedding-3-small
-      - key: OPENROUTER_EMBEDDING_DIMENSIONS
-        value: "1536"
+        value: meta-llama/llama-3.3-70b-instruct:free
+      - key: FASTEMBED_MODEL
+        value: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+      - key: FASTEMBED_DIMENSIONS
+        value: "384"
+      - key: FASTEMBED_THREADS
+        value: "1"
+      - key: FASTEMBED_BATCH_SIZE
+        value: "16"
       - key: QDRANT_COLLECTION
-        value: ai_talapker_openrouter_1536
+        value: ai_talapker_fastembed_384
       - key: OPENROUTER_API_KEY
         sync: false
       - key: QDRANT_URL
