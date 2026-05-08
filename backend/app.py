@@ -107,7 +107,7 @@ def _cors_origins() -> list[str]:
 
 def _cors_origin_regex() -> str | None:
     raw = os.getenv("APP_CORS_ORIGIN_REGEX", "").strip()
-    return raw or None
+    return raw or r"https://.*\.onrender\.com"
 
 
 app.add_middleware(
@@ -139,6 +139,21 @@ def rate_limit(max_requests: int, window_seconds: int, key_prefix: str):
         window.append(now)
 
     return dependency
+
+
+def _temporary_generation_error(lang: str, exc: Exception) -> str:
+    detail = str(exc)
+    if "429" in detail or "rate-limit" in detail.lower() or "rate limit" in detail.lower():
+        if lang == "kk":
+            return "OpenRouter моделі уақытша шектелген. Бірнеше минуттан кейін қайталап көріңіз."
+        if lang == "en":
+            return "The OpenRouter model is temporarily rate-limited. Please try again in a few minutes."
+        return "Модель OpenRouter временно ограничена по лимитам. Попробуйте повторить через несколько минут."
+    if lang == "kk":
+        return "Жауапты генерациялау кезінде уақытша қате болды. Кейінірек қайталап көріңіз."
+    if lang == "en":
+        return "A temporary generation error occurred. Please try again later."
+    return "Возникла временная ошибка генерации ответа. Попробуйте позже."
 
 
 @app.get("/")
@@ -193,27 +208,38 @@ async def shutdown_event():
 
 @app.post("/ask", response_model=Answer)
 async def ask_question(req: Ask, _: None = Depends(rate_limit(30, 60, "ask"))):
-    result = run_agent_turn(
-        message=req.question,
-        lang=req.lang,
-        use_llm=req.use_llm,
-        session_id=req.session_id,
-        allow_web_search=req.allow_web_search,
-    )
+    try:
+        result = run_agent_turn(
+            message=req.question,
+            lang=req.lang,
+            use_llm=req.use_llm,
+            session_id=req.session_id,
+            allow_web_search=req.allow_web_search,
+        )
+    except Exception as exc:
+        return Answer(answer=_temporary_generation_error(req.lang, exc))
     return Answer(answer=result["answer"])
 
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, _: None = Depends(rate_limit(30, 60, "chat"))):
-    result = run_agent_turn(
-        message=req.message,
-        lang=req.lang,
-        use_llm=req.use_llm,
-        session_id=req.session_id,
-        allow_web_search=req.allow_web_search,
-        reply_to=req.reply_to.model_dump() if req.reply_to else None,
-        message_id=req.message_id,
-    )
+    try:
+        result = run_agent_turn(
+            message=req.message,
+            lang=req.lang,
+            use_llm=req.use_llm,
+            session_id=req.session_id,
+            allow_web_search=req.allow_web_search,
+            reply_to=req.reply_to.model_dump() if req.reply_to else None,
+            message_id=req.message_id,
+        )
+    except Exception as exc:
+        return ChatResponse(
+            session_id=req.session_id or "",
+            answer=_temporary_generation_error(req.lang, exc),
+            route="knowledge",
+            profile_complete=False,
+        )
     answer = str(result.get("answer") or "").strip()
     if not answer:
         answer = "There is not enough information in the database to answer this question."
@@ -230,10 +256,13 @@ async def suggestions(req: SuggestRequest, _: None = Depends(rate_limit(20, 60, 
     safe_count = max(1, min(req.count, 8))
     if not req.use_llm:
         return SuggestResponse(questions=fallback_suggestions(req.lang, safe_count))
-    if req.history:
-        history = [{"role": item.role, "content": item.content} for item in req.history]
-        return SuggestResponse(questions=generate_session_suggestions(get_index(), req.lang, history, safe_count))
-    return SuggestResponse(questions=generate_suggestions(get_index(), req.lang, safe_count))
+    try:
+        if req.history:
+            history = [{"role": item.role, "content": item.content} for item in req.history]
+            return SuggestResponse(questions=generate_session_suggestions(get_index(), req.lang, history, safe_count))
+        return SuggestResponse(questions=generate_suggestions(get_index(), req.lang, safe_count))
+    except Exception:
+        return SuggestResponse(questions=fallback_suggestions(req.lang, safe_count))
 
 
 @app.post("/rag/rebuild", response_model=RagRebuildResponse)

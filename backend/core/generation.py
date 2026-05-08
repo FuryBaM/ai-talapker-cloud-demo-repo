@@ -379,32 +379,40 @@ def _parse_suggestion_lines(generated: str, count: int) -> List[str]:
 
 def fallback_suggestions(lang: str, count: int) -> List[str]:
     safe_count = max(1, min(count, 8))
-    lang_label = _suggestion_lang_label(lang)
-    messages = [
-        {"role": "system", "content": "You generate user question suggestions for a university assistant."},
-        {
-            "role": "user",
-            "content": (
-                f"Return exactly {safe_count} short, natural questions in {lang_label}.\n"
-                "These should be useful first prompts for an applicant.\n"
-                "Focus on programs, admission, grants, scores, student life, contacts, and career paths.\n"
-                "Each line must start with '- '.\n"
-                "Do not include numbering, explanations, placeholders, or comments."
-            ),
-        },
-    ]
-    generated = generate_from_messages(messages, max_new_tokens=180, ctx_texts=None)
-    items = _parse_suggestion_lines(generated, safe_count)
-    if items:
-        return items
-
     if lang == "en":
-        seed = "What programs are available?"
+        seeds = [
+            "What programs are available?",
+            "What documents are required for admission?",
+            "What are the threshold scores?",
+            "How much does tuition cost?",
+            "How can I contact the admissions office?",
+            "What dormitory information is available?",
+            "What grants or benefits are available?",
+            "What are the admission deadlines?",
+        ]
     elif lang == "kk":
-        seed = "Қандай білім беру бағдарламалары бар?"
+        seeds = [
+            "Қандай білім беру бағдарламалары бар?",
+            "Оқуға түсу үшін қандай құжаттар қажет?",
+            "Шекті баллдар қандай?",
+            "Оқу ақысы қанша?",
+            "Қабылдау комиссиясымен қалай байланысуға болады?",
+            "Жатақхана туралы қандай ақпарат бар?",
+            "Қандай гранттар немесе жеңілдіктер бар?",
+            "Қабылдау мерзімдері қандай?",
+        ]
     else:
-        seed = "Какие образовательные программы доступны?"
-    return [seed for _ in range(safe_count)]
+        seeds = [
+            "Какие образовательные программы доступны?",
+            "Какие документы нужны для поступления?",
+            "Какие пороговые баллы установлены?",
+            "Сколько стоит обучение?",
+            "Как связаться с приемной комиссией?",
+            "Какая информация есть по общежитию?",
+            "Какие гранты или льготы доступны?",
+            "Какие сроки приема документов?",
+        ]
+    return seeds[:safe_count]
 
 
 def suggestion_context(index: QdrantIndex, max_chunks: int = 8) -> List[str]:
