@@ -24,6 +24,7 @@ from core.admin_auth import (
 from core.config import INPUT_DATA_DIR, KNOWLEDGE_ENTRIES_PATH, KNOWLEDGE_REGISTRY_PATH, RAG_CHUNKS_PATH
 from core.entry_store import delete_curated_entry, load_curated_entries, upsert_curated_entry
 from core.generation import fallback_suggestions, generate_session_suggestions, generate_suggestions
+from core.agents import deterministic_lookup_answer
 from core.interview_service import refresh_interview_metadata
 from core.knowledge_assets import (
     get_index,
@@ -156,6 +157,13 @@ def _temporary_generation_error(lang: str, exc: Exception) -> str:
     return "Возникла временная ошибка генерации ответа. Попробуйте позже."
 
 
+def _fallback_chat_answer(message: str, lang: str, exc: Exception) -> str:
+    deterministic = deterministic_lookup_answer(message, lang)
+    if deterministic:
+        return deterministic
+    return _temporary_generation_error(lang, exc)
+
+
 @app.get("/")
 async def root():
     return {"ok": True, "service": "AI-Talapker backend", "docs": "/docs", "health": "/health"}
@@ -217,7 +225,7 @@ async def ask_question(req: Ask, _: None = Depends(rate_limit(30, 60, "ask"))):
             allow_web_search=req.allow_web_search,
         )
     except Exception as exc:
-        return Answer(answer=_temporary_generation_error(req.lang, exc))
+        return Answer(answer=_fallback_chat_answer(req.question, req.lang, exc))
     return Answer(answer=result["answer"])
 
 
@@ -236,7 +244,7 @@ async def chat(req: ChatRequest, _: None = Depends(rate_limit(30, 60, "chat"))):
     except Exception as exc:
         return ChatResponse(
             session_id=req.session_id or "",
-            answer=_temporary_generation_error(req.lang, exc),
+            answer=_fallback_chat_answer(req.message, req.lang, exc),
             route="knowledge",
             profile_complete=False,
         )

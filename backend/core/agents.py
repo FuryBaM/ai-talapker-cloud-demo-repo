@@ -1729,17 +1729,19 @@ def lookup_agent(state: AgentState) -> AgentState:
                 "Уточните, пожалуйста, недостающие значения."
             )
     elif ctx_list:
-        answer = (
-            generate_answer(
-                state["user_message"],
-                ctx_list,
-                state["lang"],
-                history_text=_recent_history(session),
-                memory_text=_memory_context(state, include_history=False),
-            )
-            if state["use_llm"]
-            else "\n\n---\n\n".join(ctx_list)
-        )
+        if state["use_llm"]:
+            try:
+                answer = generate_answer(
+                    state["user_message"],
+                    ctx_list,
+                    state["lang"],
+                    history_text=_recent_history(session),
+                    memory_text=_memory_context(state, include_history=False),
+                )
+            except Exception:
+                answer = "\n\n---\n\n".join(ctx_list[:3])
+        else:
+            answer = "\n\n---\n\n".join(ctx_list)
     else:
         answer = ""
 
@@ -1763,16 +1765,21 @@ def lookup_agent(state: AgentState) -> AgentState:
         if web_ctx:
             ctx_list = web_ctx
             answer = (
-                generate_answer(
-                    state["user_message"],
-                    ctx_list,
-                    state["lang"],
-                    history_text=_recent_history(session),
-                    memory_text=_memory_context(state, include_history=False),
-                )
+                "\n\n---\n\n".join(ctx_list[:3])
                 if state["use_llm"]
                 else "\n\n---\n\n".join(ctx_list)
             )
+            if state["use_llm"]:
+                try:
+                    answer = generate_answer(
+                        state["user_message"],
+                        ctx_list,
+                        state["lang"],
+                        history_text=_recent_history(session),
+                        memory_text=_memory_context(state, include_history=False),
+                    )
+                except Exception:
+                    pass
 
     if not answer:
         answer = (
@@ -1793,6 +1800,26 @@ def lookup_agent(state: AgentState) -> AgentState:
         "lookup_queries": lookup_queries,
         "lookup_iteration": lookup_iteration,
     }
+
+
+def deterministic_lookup_answer(message: str, lang: str = "ru", history_text: str = "") -> str | None:
+    """Best-effort non-LLM answer used when cloud generation is unavailable."""
+    try:
+        ctx_list = _retrieve_knowledge_context(message, history_text)
+    except Exception:
+        ctx_list = []
+    try:
+        answer = _extract_address_answer(message, ctx_list, lang)
+        if answer:
+            return answer
+        answer = _extract_document_answer(message, ctx_list, lang)
+        if answer:
+            return answer
+    except Exception:
+        pass
+    if ctx_list:
+        return "\n\n---\n\n".join(ctx_list[:3])
+    return None
 
 
 def calculator_agent(state: AgentState) -> AgentState:

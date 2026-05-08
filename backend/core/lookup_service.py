@@ -453,7 +453,8 @@ def _local_retrieval_filters(query: str) -> dict[str, Any] | None:
     lower = str(query or "").lower()
     domains: list[str] = []
     education_level = None
-    if any(token in lower for token in ["бакалавр", "ент", "ұбт", "после школы"]):
+    words = set(lower.replace("?", " ").replace(",", " ").replace(".", " ").split())
+    if "бакалавр" in lower or "после школы" in lower or "ұбт" in words or "ент" in words:
         education_level = "bachelor"
     elif any(token in lower for token in ["магистр", "магистрат"]):
         education_level = "master"
@@ -501,7 +502,15 @@ def retrieve_knowledge_context(
     program_overview_ctx = _program_overview_context(query, payload_context_snippet=payload_context_snippet)
     if program_overview_ctx:
         return program_overview_ctx
-    retrieval_filters = _local_retrieval_filters(query) or (llm_retrieval_filters(query, history_text) if query.strip() else {"domains": list(DEFAULT_RETRIEVAL_DOMAINS), "schemas": [], "education_level": None, "language": None})
+    retrieval_filters = _local_retrieval_filters(query)
+    if retrieval_filters is None:
+        if query.strip():
+            try:
+                retrieval_filters = llm_retrieval_filters(query, history_text)
+            except Exception:
+                retrieval_filters = {"domains": list(DEFAULT_RETRIEVAL_DOMAINS), "schemas": [], "education_level": None, "language": None}
+        else:
+            retrieval_filters = {"domains": list(DEFAULT_RETRIEVAL_DOMAINS), "schemas": [], "education_level": None, "language": None}
     if not retrieval_filters.get("domains"):
         retrieval_filters["domains"] = ["university_info"]
     stems = query_stems(query)
